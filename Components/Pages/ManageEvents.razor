@@ -1,0 +1,199 @@
+@page "/admin/events"
+@using Microsoft.EntityFrameworkCore
+@using NamcyaTabulation.Data
+@using NamcyaTabulation.Models
+@using NamcyaTabulation.Services
+@inject AppDbContext DbContext
+@inject OrganizerAuthService AuthService
+@inject NavigationManager NavManager
+
+<PageTitle>Manage Events</PageTitle>
+
+@if (AuthService.CurrentOrganizer != null)
+{
+    <div class="container-fluid mt-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold">Manage Events & Sub-Events</h2>
+            <a href="/admin-panel" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to Hub</a>
+        </div>
+
+        <div class="row g-4">
+            <!-- Data Lists Column -->
+            <div class="col-md-8">
+                <!-- Main Events -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Main Events</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">ID</th>
+                                    <th>Event Name</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Events.Any())
+                                {
+                                    <tr><td colspan="3" class="text-center text-muted py-4">No events found.</td></tr>
+                                }
+                                @foreach (var ev in Events)
+                                {
+                                    <tr>
+                                        <td class="ps-3">@ev.Id</td>
+                                        <td class="fw-bold text-primary">@ev.Name</td>
+                                        <td class="text-end pe-3">
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEvent(ev)">Edit</button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteEvent(ev)">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sub-Events -->
+                <div class="card shadow-sm border-0">
+                    <div class="card-header text-white header-dark">
+                        <h5 class="mb-0">Sub-Events</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">ID</th>
+                                    <th>Sub-Event Name</th>
+                                    <th>Parent Event</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!SubEvents.Any())
+                                {
+                                    <tr><td colspan="4" class="text-center text-muted py-4">No sub-events found.</td></tr>
+                                }
+                                @foreach (var sub in SubEvents)
+                                {
+                                    <tr>
+                                        <td class="ps-3">@sub.Id</td>
+                                        <td class="fw-medium">@sub.Name</td>
+                                        <td>@(sub.Event?.Name ?? "Unknown")</td>
+                                        <td class="text-end pe-3">
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditSubEvent(sub)">Edit</button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteSubEvent(sub)">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Forms Column -->
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 mb-4 bg-light sticky-top sticky-form-top">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold text-primary">@(currentEvent.Id == 0 ? "Create New Event" : "Edit Event")</h5>
+                        <hr />
+                        <form @onsubmit="SaveEvent" @onsubmit:preventDefault="true">
+                            <div class="mb-3">
+                                <label class="form-label">Event Name</label>
+                                <input type="text" class="form-control" @bind="currentEvent.Name" placeholder="e.g., Regional Finals" required />
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary w-100">Save Event</button>
+                                @if(currentEvent.Id != 0) { <button type="button" class="btn btn-secondary" @onclick="ClearEventForm">Cancel</button> }
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 bg-light sticky-top sticky-form-bottom">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold header-dark-text">@(currentSubEvent.Id == 0 ? "Create Sub-Event" : "Edit Sub-Event")</h5>
+                        <hr />
+                        <form @onsubmit="SaveSubEvent" @onsubmit:preventDefault="true">
+                            <div class="mb-3">
+                                <label class="form-label">Sub-Event Name</label>
+                                <input type="text" class="form-control" @bind="currentSubEvent.Name" placeholder="e.g., Junior Choir" required />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Parent Event</label>
+                                <select class="form-select" @bind="currentSubEvent.EventId" required>
+                                    <option value="0">-- Select Main Event --</option>
+                                    @foreach(var ev in Events) { <option value="@ev.Id">@ev.Name</option> }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Chairman Judge</label>
+                                <select class="form-select" @bind="currentSubEvent.ChairmanJudgeId">
+                                    <option value="">-- Auto-Assign (First Judge) --</option>
+                                    @foreach(var judge in Judges) { <option value="@judge.Id">@judge.Name</option> }
+                                </select>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-dark-custom text-white w-100">Save Sub-Event</button>
+                                @if(currentSubEvent.Id != 0) { <button type="button" class="btn btn-secondary" @onclick="ClearSubEventForm">Cancel</button> }
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Event> Events = new();
+    private List<SubEvent> SubEvents = new();
+    private List<Judge> Judges = new();
+
+    private Event currentEvent = new();
+    private SubEvent currentSubEvent = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.InitializeSessionAsync();
+        if (AuthService.CurrentOrganizer == null) { NavManager.NavigateTo("/"); return; }
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        Events = await DbContext.Events.ToListAsync();
+        SubEvents = await DbContext.SubEvents.Include(s => s.Event).ToListAsync();
+        Judges = await DbContext.Judges.ToListAsync();
+    }
+
+    // --- Event Logic ---
+    private void EditEvent(Event ev) => currentEvent = new Event { Id = ev.Id, Name = ev.Name };
+    private void ClearEventForm() => currentEvent = new Event();
+    private async Task SaveEvent()
+    {
+        if (string.IsNullOrWhiteSpace(currentEvent.Name)) return;
+        if (currentEvent.Id == 0) DbContext.Events.Add(currentEvent);
+        else { var existing = await DbContext.Events.FindAsync(currentEvent.Id); if (existing != null) { existing.Name = currentEvent.Name; DbContext.Events.Update(existing); } }
+        await DbContext.SaveChangesAsync();
+        ClearEventForm();
+        await LoadData();
+    }
+    private async Task DeleteEvent(Event ev) { DbContext.Events.Remove(ev); await DbContext.SaveChangesAsync(); await LoadData(); }
+
+    // --- Sub-Event Logic ---
+    private void EditSubEvent(SubEvent sub) => currentSubEvent = new SubEvent { Id = sub.Id, Name = sub.Name, EventId = sub.EventId, ChairmanJudgeId = sub.ChairmanJudgeId };
+    private void ClearSubEventForm() => currentSubEvent = new SubEvent();
+    private async Task SaveSubEvent()
+    {
+        if (string.IsNullOrWhiteSpace(currentSubEvent.Name) || currentSubEvent.EventId == 0) return;
+        if (currentSubEvent.Id == 0) DbContext.SubEvents.Add(currentSubEvent);
+        else { var existing = await DbContext.SubEvents.FindAsync(currentSubEvent.Id); if (existing != null) { existing.Name = currentSubEvent.Name; existing.EventId = currentSubEvent.EventId; existing.ChairmanJudgeId = currentSubEvent.ChairmanJudgeId; DbContext.SubEvents.Update(existing); } }
+        await DbContext.SaveChangesAsync();
+        ClearSubEventForm();
+        await LoadData();
+    }
+    private async Task DeleteSubEvent(SubEvent sub) { DbContext.SubEvents.Remove(sub); await DbContext.SaveChangesAsync(); await LoadData(); }
+}

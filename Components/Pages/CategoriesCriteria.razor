@@ -1,0 +1,315 @@
+@page "/admin/categories-criteria"
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.EntityFrameworkCore
+@using NamcyaTabulation.Data
+@using NamcyaTabulation.Models
+@using NamcyaTabulation.Services
+@inject AppDbContext DbContext
+@inject OrganizerAuthService AuthService
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
+
+<PageTitle>Manage Categories & Criteria</PageTitle>
+
+<div class="container mt-4 fade-in">
+    <h2 class="mb-4 fw-bold">Categories & Criteria</h2>
+
+    <!-- Selection Card -->
+    <div class="card shadow-sm border-0 mb-4 rounded-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Select Event</label>
+                    <select class="form-select" @onchange="OnEventChanged">
+                        <option value="0">-- Select Event --</option>
+                        @foreach (var ev in Events)
+                        {
+                            <option value="@ev.Id">@ev.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Select Sub-Event</label>
+                    <select class="form-select" @onchange="OnSubEventChanged" disabled="@(SelectedEvent == null)">
+                        <option value="0">-- Select Sub-Event --</option>
+                        @foreach (var sub in SubEvents)
+                        {
+                            <option value="@sub.Id">@sub.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (SelectedSubEvent != null)
+    {
+        <div class="row g-4">
+            <!-- Categories Panel -->
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-header bg-primary text-white p-3">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-tags me-2"></i> Categories</h5>
+                    </div>
+                    <div class="card-body">
+                        <form @onsubmit="SaveCategory" class="mb-4 d-flex gap-2">
+                            <input type="text" class="form-control" placeholder="New Category Name" @bind="newCategory.Name" required />
+                            <button type="submit" class="btn btn-primary fw-bold">Add</button>
+                        </form>
+                        
+                        <ul class="list-group list-group-flush">
+                            @if (!Categories.Any())
+                            {
+                                <li class="list-group-item text-muted">No categories added yet.</li>
+                            }
+                            @foreach (var cat in Categories)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <span>@cat.Name</span>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategory(cat)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Criteria Panel -->
+            <div class="col-md-7">
+                <div class="card shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-header bg-success text-white p-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-list-check me-2"></i> Criteria</h5>
+                        <span class="badge bg-light text-success fs-6 shadow-sm">Total: @Criteria.Sum(c => c.MaxScore)%</span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Import Criteria Tool -->
+                        <div class="p-3 bg-light rounded-3 mb-4 border">
+                            <label class="form-label fw-bold text-secondary mb-2"><i class="bi bi-box-arrow-in-down me-1"></i> Import Criteria from another Sub-Event</label>
+                            <div class="input-group">
+                                <select class="form-select" @bind="importSubEventId">
+                                    <option value="0">-- Select Source Sub-Event --</option>
+                                    @foreach (var ev in Events)
+                                    {
+                                        <optgroup label="@ev.Name">
+                                            @foreach (var sub in AllSubEvents.Where(s => s.EventId == ev.Id && s.Id != SelectedSubEvent.Id))
+                                            {
+                                                <option value="@sub.Id">@sub.Name</option>
+                                            }
+                                        </optgroup>
+                                    }
+                                </select>
+                                <button class="btn btn-outline-success fw-bold" @onclick="ImportCriteria" disabled="@(importSubEventId == 0)">
+                                    <i class="bi bi-copy me-1"></i> Clone
+                                </button>
+                            </div>
+                        </div>
+
+                        <form @onsubmit="SaveCriterion" class="mb-4 row g-2">
+                            <div class="col-sm-7">
+                                <input type="text" class="form-control" placeholder="Criterion Name (e.g. Musicality)" @bind="newCriterion.Name" required />
+                            </div>
+                            <div class="col-sm-3">
+                                <input type="number" class="form-control" placeholder="Max" @bind="newCriterion.MaxScore" min="1" step="0.1" required />
+                            </div>
+                            <div class="col-sm-2">
+                                <button type="submit" class="btn btn-success w-100 fw-bold">Add</button>
+                            </div>
+                        </form>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th class="text-center">Max Score</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (!Criteria.Any())
+                                    {
+                                        <tr><td colspan="3" class="text-muted text-center py-3">No criteria defined yet. Use the tool above to clone!</td></tr>
+                                    }
+                                    @foreach (var crit in Criteria)
+                                    {
+                                        <tr>
+                                            <td class="fw-bold">@crit.Name</td>
+                                            <td class="text-center">
+                                                <span class="badge bg-light text-dark border px-3 py-2">@crit.MaxScore</span>
+                                            </td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm btn-outline-danger shadow-sm" @onclick="() => DeleteCriterion(crit)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        @if (Criteria.Sum(c => c.MaxScore) != 100 && Criteria.Any())
+                        {
+                            <div class="alert alert-warning py-2 mb-0 mt-2 d-flex align-items-center">
+                                <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i> 
+                                <div>
+                                    <strong>Warning:</strong> Total max score is currently @Criteria.Sum(c => c.MaxScore). For a standard 100% grading system, adjust the values above!
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Event> Events = new();
+    private List<SubEvent> AllSubEvents = new();
+    private List<SubEvent> SubEvents = new();
+    private List<Category> Categories = new();
+    private List<Criterion> Criteria = new();
+
+    private Event? SelectedEvent;
+    private SubEvent? SelectedSubEvent;
+    
+    private Category newCategory = new();
+    private Criterion newCriterion = new();
+
+    private int importSubEventId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.InitializeSessionAsync();
+        if (AuthService.CurrentOrganizer == null)
+        {
+            NavManager.NavigateTo("/");
+            return;
+        }
+
+        Events = await DbContext.Events.ToListAsync();
+        AllSubEvents = await DbContext.SubEvents.ToListAsync();
+    }
+
+    private async Task OnEventChanged(ChangeEventArgs e)
+    {
+        SelectedSubEvent = null;
+        Categories.Clear();
+        Criteria.Clear();
+
+        if (int.TryParse(e.Value?.ToString(), out int eventId) && eventId > 0)
+        {
+            SelectedEvent = Events.FirstOrDefault(ev => ev.Id == eventId);
+            SubEvents = AllSubEvents.Where(s => s.EventId == eventId).ToList();
+        }
+        else
+        {
+            SelectedEvent = null;
+            SubEvents.Clear();
+        }
+    }
+
+    private async Task OnSubEventChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int subId) && subId > 0)
+        {
+            SelectedSubEvent = SubEvents.FirstOrDefault(s => s.Id == subId);
+            await LoadSubEventData();
+        }
+        else
+        {
+            SelectedSubEvent = null;
+            Categories.Clear();
+            Criteria.Clear();
+        }
+    }
+
+    private async Task LoadSubEventData()
+    {
+        if (SelectedSubEvent != null)
+        {
+            Categories = await DbContext.Categories.Where(c => c.SubEventId == SelectedSubEvent.Id).ToListAsync();
+            Criteria = await DbContext.Criteria.Where(c => c.SubEventId == SelectedSubEvent.Id).ToListAsync();
+            importSubEventId = 0; // Reset import dropdown
+        }
+    }
+
+    private async Task SaveCategory()
+    {
+        if (SelectedSubEvent == null || string.IsNullOrWhiteSpace(newCategory.Name)) return;
+        
+        newCategory.SubEventId = SelectedSubEvent.Id;
+        DbContext.Categories.Add(newCategory);
+        await DbContext.SaveChangesAsync();
+        
+        newCategory = new Category();
+        await LoadSubEventData();
+    }
+
+    private async Task DeleteCategory(Category cat)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete the category '{cat.Name}'?");
+        if (confirmed)
+        {
+            DbContext.Categories.Remove(cat);
+            await DbContext.SaveChangesAsync();
+            await LoadSubEventData();
+        }
+    }
+
+    private async Task SaveCriterion()
+    {
+        if (SelectedSubEvent == null || string.IsNullOrWhiteSpace(newCriterion.Name)) return;
+
+        newCriterion.SubEventId = SelectedSubEvent.Id;
+        DbContext.Criteria.Add(newCriterion);
+        await DbContext.SaveChangesAsync();
+        
+        newCriterion = new Criterion();
+        await LoadSubEventData();
+    }
+
+    private async Task DeleteCriterion(Criterion crit)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete the criterion '{crit.Name}'? This deletes all scores submitted for it.");
+        if (confirmed)
+        {
+            DbContext.Criteria.Remove(crit);
+            await DbContext.SaveChangesAsync();
+            await LoadSubEventData();
+        }
+    }
+
+    // --- Import Criteria Logic (Approach 2) ---
+    private async Task ImportCriteria()
+    {
+        if (SelectedSubEvent == null || importSubEventId == 0) return;
+
+        // Fetch criteria from the source Sub-Event
+        var sourceCriteria = await DbContext.Criteria.Where(c => c.SubEventId == importSubEventId).ToListAsync();
+
+        if (!sourceCriteria.Any())
+        {
+            await JS.InvokeVoidAsync("alert", "The selected Sub-Event has no criteria to clone!");
+            return;
+        }
+
+        // Clone each criterion into the current Sub-Event
+        foreach (var sc in sourceCriteria)
+        {
+            DbContext.Criteria.Add(new Criterion
+            {
+                Name = sc.Name,
+                MaxScore = sc.MaxScore,
+                SubEventId = SelectedSubEvent.Id
+            });
+        }
+
+        await DbContext.SaveChangesAsync();
+        await LoadSubEventData();
+        await JS.InvokeVoidAsync("alert", "Criteria cloned successfully! You can now freely adjust their Max Scores.");
+    }
+}

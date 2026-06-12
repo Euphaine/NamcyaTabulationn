@@ -1,0 +1,42 @@
+﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["NamcyaTabulation.styles.css"]" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="@Assets["images/namcya_logo.png"]" />
+    
+    <style>
+        html {
+            background-color: #05080f !important; /* Deep space safety-net color to prevent white flashes */
+        }
+        body {
+            background: transparent !important; /* Must be transparent so it doesn't bury the live shader */
+        }
+        /* Prevent the Blazor Reconnect Modal from flashing bright white */
+        #components-reconnect-modal {
+            background-color: rgba(5, 8, 15, 0.95) !important;
+            color: white !important;
+        }
+    </style>
+    
+    <HeadOutlet @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
+</head>
+
+<body>
+    <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
+    <ReconnectModal />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="/js/shader-bg.js"></script>
+    <script src="/js/login-shader.js"></script>
+</body>
+
+</html>

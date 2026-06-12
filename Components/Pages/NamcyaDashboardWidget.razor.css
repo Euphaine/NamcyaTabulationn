@@ -1,0 +1,11 @@
+.iframe-container {
+    height: 650px;
+    width: 100%;
+}
+
+.iframe-transition {
+    position: relative;
+    z-index: 1;
+    transition: opacity 0.8s ease-in-out;
+    background: transparent;
+}

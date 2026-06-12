@@ -1,0 +1,75 @@
+@page "/"
+@using System.ComponentModel.DataAnnotations
+@using NamcyaTabulation.Services
+@inject OrganizerAuthService AuthService
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
+
+<PageTitle>Organizer Login</PageTitle>
+
+<div class="container mt-5 pt-5 fade-in">
+    <!-- Dedicated Shader Lines Background for Login -->
+
+    <div class="row justify-content-center">
+        <div class="col-md-5 col-lg-4 mt-5">
+            <div class="p-5 border-0 glass-panel shadow-lg text-center">
+                <img src="/images/namcya_logo.png" alt="NAMCYA Logo" class="img-fluid mb-4" style="max-height: 100px;" />
+                <h3 class="fw-bold text-white mb-1" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Organizer Portal</h3>
+                <p class="text-white-50 mb-4">Please sign in to continue</p>
+
+                <form @onsubmit="HandleLogin" @onsubmit:preventDefault="true">
+                    <div class="mb-3 text-start">
+                        <label class="form-label text-white-50 small fw-bold text-uppercase">Username</label>
+                        <input type="text" class="form-control glass-input text-white" @bind="loginModel.Username" required />
+                    </div>
+                    
+                    <div class="mb-4 text-start">
+                        <label class="form-label text-white-50 small fw-bold text-uppercase">Password</label>
+                        <input type="password" class="form-control glass-input text-white" @bind="loginModel.Password" required />
+                    </div>
+                    
+                    <button type="submit" class="btn liquid-btn w-100 text-white fw-bold mb-3">Sign In</button>
+                    
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert bg-danger bg-opacity-25 text-white border-0 mt-3 p-2 small fw-bold">@errorMessage</div>
+                    }
+                    
+                    <div class="text-center">
+                        <span class="text-white-50">Don't have an account?</span>
+                        <a href="/register" class="ms-1 text-info fw-bold">Register here</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    public LoginModel loginModel { get; set; } = new();
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.InitializeSessionAsync();
+        if (AuthService.CurrentOrganizer != null) NavManager.NavigateTo("/home");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+       
+    }
+
+    private async Task HandleLogin()
+    {
+        errorMessage = null;
+        var success = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+        if (success) NavManager.NavigateTo("/home");
+        else errorMessage = "Invalid username or password.";
+    }
+
+    public class LoginModel {
+        [Required] public string Username { get; set; } = string.Empty;
+        [Required] public string Password { get; set; } = string.Empty;
+    }
+}

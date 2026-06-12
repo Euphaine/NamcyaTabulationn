@@ -1,0 +1,130 @@
+@page "/judge-breakdown/{CategoryId:int}"
+@using Microsoft.EntityFrameworkCore
+@using NamcyaTabulation.Data
+@using NamcyaTabulation.Models
+@using NamcyaTabulation.Services
+@inject AppDbContext DbContext
+@inject TabulationService TabService
+@inject IJSRuntime JS
+
+<PageTitle>Judge Score Breakdown</PageTitle>
+
+<style>
+    @@media print {
+        @@page { margin: 10mm; size: landscape; }
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .print-card { border: none !important; box-shadow: none !important; }
+    }
+</style>
+
+<div class="container-fluid mt-4 fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+        <h2 class="fw-bold"><i class="bi bi-grid-3x3 me-2 text-primary"></i> Judge Score Breakdown</h2>
+        <button class="btn btn-outline-primary fw-bold shadow-sm" @onclick="PrintToPdf">
+            <i class="bi bi-printer me-2"></i> Print Report
+        </button>
+    </div>
+
+    @if (Category == null)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading breakdown data...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Print-Only Header -->
+        <div class="d-none d-print-block text-center mb-4">
+            <h3 class="fw-bold text-uppercase">Judge Breakdown Report</h3>
+            <h5 class="mb-0">@Category.SubEvent?.Event?.Name</h5>
+            <h6 class="text-muted">@Category.SubEvent?.Name &mdash; @Category.Name</h6>
+        </div>
+
+        <div class="card shadow-sm border-0 rounded-4 mb-4 print-card">
+            <div class="card-header bg-dark text-white p-3 text-center d-print-none">
+                <h5 class="mb-1 fw-bold">@Category.SubEvent?.Event?.Name</h5>
+                <h6 class="mb-0 text-light">@Category.SubEvent?.Name &mdash; @Category.Name</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover mb-0 text-center align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-start py-3" style="width: 25%;">Contestant</th>
+                                @foreach (var judge in Judges)
+                                {
+                                    <th class="py-3">
+                                        <span class="d-block fw-bold text-dark">@judge</span>
+                                        <small class="text-muted fw-normal" style="font-size: 0.8rem;">Score / Rank</small>
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!Contestants.Any())
+                            {
+                                <tr>
+                                    <td colspan="@(Judges.Count + 1)" class="text-muted py-4">No scoring data available for this category yet.</td>
+                                </tr>
+                            }
+                            @foreach (var contestant in Contestants)
+                            {
+                                <tr>
+                                    <td class="text-start fw-bold fs-5">@contestant.Name</td>
+                                    @foreach (var judge in Judges)
+                                    {
+                                        var record = BreakdownData.FirstOrDefault(b => b.ContestantId == contestant.Id && b.JudgeName == judge);
+                                        <td>
+                                            @if (record != null)
+                                            {
+                                                <span class="d-block fw-bold text-success fs-5">@record.TotalScore.ToString("0.00")</span>
+                                                <span class="badge bg-secondary shadow-sm">Rank @record.JudgeRank</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-muted border">Pending</span>
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] 
+    public int CategoryId { get; set; }
+
+    private Category? Category;
+    private List<JudgeScoreBreakdown> BreakdownData = new();
+    private List<string> Judges = new();
+    private List<(int Id, string Name)> Contestants = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Category = await DbContext.Categories
+            .Include(c => c.SubEvent)
+            .ThenInclude(s => s!.Event)
+            .FirstOrDefaultAsync(c => c.Id == CategoryId);
+
+        if (Category != null)
+        {
+            BreakdownData = await TabService.GetJudgeBreakdownAsync(CategoryId);
+            
+            // Extract unique column headers (Judges) and row labels (Contestants)
+            Judges = BreakdownData.Select(b => b.JudgeName).Distinct().OrderBy(n => n).ToList();
+            Contestants = BreakdownData.Select(b => (Id: b.ContestantId, Name: b.ContestantName)).Distinct().OrderBy(c => c.Name).ToList();
+        }
+    }
+
+    private async Task PrintToPdf()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+}

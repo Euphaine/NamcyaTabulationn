@@ -1,0 +1,19 @@
+/* Smooth Card Fade-in */
+.fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Admin Hub Card Hover Scaling */
+.admin-hub-card {
+    transition: all 0.2s ease-in-out;
+}
+
+.admin-hub-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+}

@@ -1,0 +1,109 @@
+@page "/home"
+@using Microsoft.EntityFrameworkCore
+@using NamcyaTabulation.Data
+@using NamcyaTabulation.Services
+@inject OrganizerAuthService AuthService
+@inject NavigationManager NavManager
+@inject AppDbContext DbContext
+
+<PageTitle>Home Dashboard</PageTitle>
+
+@if (AuthService.CurrentOrganizer != null)
+{
+    <div class="container-fluid mt-4 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold text-white mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Home Dashboard</h2>
+                <p class="text-white-50 mb-0">Welcome back, @AuthService.CurrentOrganizer.Username!</p>
+            </div>
+            <button class="btn liquid-btn text-danger fw-bold shadow-sm" @onclick="HandleLogout">
+                <i class="bi bi-box-arrow-right me-2"></i> Logout
+            </button>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="glass-panel hover-zoom overflow-hidden h-100">
+                    <div class="p-4 d-flex align-items-center">
+                        <i class="bi bi-calendar-event text-primary" style="font-size: 2.5rem;"></i>
+                        <div class="ms-3">
+                            <h6 class="text-uppercase text-white-50 fw-bold mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Total Events</h6>
+                            <h2 class="mb-0 fw-bold text-white">@totalEvents</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel hover-zoom overflow-hidden h-100">
+                    <div class="p-4 d-flex align-items-center">
+                        <i class="bi bi-tags text-info" style="font-size: 2.5rem;"></i>
+                        <div class="ms-3">
+                            <h6 class="text-uppercase text-white-50 fw-bold mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Categories</h6>
+                            <h2 class="mb-0 fw-bold text-white">@totalCategories</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel hover-zoom overflow-hidden h-100">
+                    <div class="p-4 d-flex align-items-center">
+                        <i class="bi bi-person-badge text-success" style="font-size: 2.5rem;"></i>
+                        <div class="ms-3">
+                            <h6 class="text-uppercase text-white-50 fw-bold mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Active Judges</h6>
+                            <h2 class="mb-0 fw-bold text-white">@totalJudges</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="glass-panel hover-zoom overflow-hidden h-100">
+                    <div class="p-4 d-flex align-items-center">
+                        <i class="bi bi-people text-warning" style="font-size: 2.5rem;"></i>
+                        <div class="ms-3">
+                            <h6 class="text-uppercase text-white-50 fw-bold mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Contestants</h6>
+                            <h2 class="mb-0 fw-bold text-white">@totalContestants</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NAMCYA Live Access Portal Widget -->
+        <div class="row mt-5 d-print-none fade-in">
+            <div class="col-12">
+                <NamcyaDashboardWidget />
+            </div>
+        </div>
+        
+    </div>
+}
+
+@code {
+    private int totalEvents = 0;
+    private int totalCategories = 0;
+    private int totalJudges = 0;
+    private int totalContestants = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.InitializeSessionAsync();
+        if (AuthService.CurrentOrganizer == null) 
+        {
+            NavManager.NavigateTo("/");
+            return;
+        }
+
+        // Fetch quick statistics
+        totalEvents = await DbContext.Events.CountAsync();
+        totalCategories = await DbContext.Categories.CountAsync();
+        totalJudges = await DbContext.Judges.CountAsync();
+        totalContestants = await DbContext.Contestants.CountAsync();
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        NavManager.NavigateTo("/", forceLoad: true);
+    }
+}

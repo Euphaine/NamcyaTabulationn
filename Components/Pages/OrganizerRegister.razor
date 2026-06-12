@@ -1,0 +1,75 @@
+@page "/register"
+@using System.ComponentModel.DataAnnotations
+@using NamcyaTabulation.Services
+@inject OrganizerAuthService AuthService
+@inject NavigationManager NavManager
+
+<PageTitle>Organizer Registration</PageTitle>
+
+<div class="d-flex justify-content-center align-items-center h-100 register-container">
+    <div class="card p-4 shadow-sm border-0 register-card">
+        <h3 class="mb-3">Create Account</h3>
+        <p>Register as a new event organizer</p>
+
+        <form @onsubmit="HandleRegister" @onsubmit:preventDefault="true">
+            
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" class="form-control" @bind="registerModel.Username" required />
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-control" @bind="registerModel.Password" required />
+            </div>
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <button type="submit" class="btn btn-success w-100 mb-3">Create Account</button>
+            
+            <div class="text-center">
+                <span>Already have an account?</span>
+                <a href="/" class="ms-1">Sign in</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@code {
+    public RegisterModel registerModel { get; set; } = new();
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.InitializeSessionAsync();
+        if (AuthService.CurrentOrganizer != null) NavManager.NavigateTo("/home");
+    }
+
+    private async Task HandleRegister()
+    {
+        errorMessage = null;
+        var success = await AuthService.RegisterAsync(registerModel.Username, registerModel.Password);
+        
+        if (success) 
+        {
+            // Automatically log them in after a successful registration
+            await AuthService.LoginAsync(registerModel.Username, registerModel.Password);
+            NavManager.NavigateTo("/home");
+        }
+        else 
+        {
+            errorMessage = "Username already exists. Please choose another.";
+        }
+    }
+
+    public class RegisterModel {
+        [Required(ErrorMessage = "Username is required.")] 
+        public string Username { get; set; } = string.Empty;
+        
+        [Required(ErrorMessage = "Password is required.")] 
+        public string Password { get; set; } = string.Empty;
+    }
+}

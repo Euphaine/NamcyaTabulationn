@@ -1,0 +1,81 @@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="glass-panel overflow-hidden fade-in mb-4">
+    <!-- Widget Header -->
+    <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-white border-opacity-10">
+        <h5 class="mb-0 fw-bold text-white">
+            <i class="bi bi-globe me-2"></i> NAMCYA Live Access Portal
+        </h5>
+        <a href="@TargetUrl" target="_blank" class="btn btn-sm liquid-btn text-white shadow-sm" title="Open in New Tab">
+            <i class="bi bi-box-arrow-up-right me-1"></i> Open in New Tab
+        </a>
+    </div>
+
+    <!-- Iframe & Loading Container -->
+    <div class="position-relative w-100 iframe-container">
+        @if (isLoading)
+        {
+            <div class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="z-index: 2;">
+                <div class="spinner-border text-info mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                <div class="text-white-50 fw-bold text-uppercase" style="letter-spacing: 1px;">Connecting to NAMCYA...</div>
+            </div>
+        }
+        
+        <!-- Fallback Message Behind Iframe -->
+        <div class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center text-center p-4" style="z-index: 0;">
+            <i class="bi bi-shield-lock text-white-50 mb-3" style="font-size: 2.5rem;"></i>
+            <span class="text-white-50 small">
+                If the website refuses to connect due to security headers (X-Frame-Options/CSP),<br/>
+                please use the <strong>"Open in New Tab"</strong> button above.
+            </span>
+        </div>
+
+        <iframe @ref="iframeRef"
+                src="@TargetUrl" 
+                class="w-100 h-100 border-0 iframe-transition @(isLoading ? "opacity-0" : "opacity-100")" 
+                allowfullscreen>
+        </iframe>
+    </div>
+</div>
+
+@code {
+    // Hardcoded target URL as requested
+    private readonly string TargetUrl = "https://www.namcya.com/";
+
+    private bool isLoading = true;
+    
+    private ElementReference iframeRef;
+    private DotNetObjectReference<NamcyaDashboardWidget>? objRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            
+            // Minimal JS snippet to attach the onload event safely via JS Interop
+            await JS.InvokeVoidAsync("eval", @"
+                window.registerIframeLoad = function(iframe, dotNetObj) {
+                    iframe.onload = function() {
+                        dotNetObj.invokeMethodAsync('OnIframeLoaded');
+                    };
+                }
+            ");
+            
+            await JS.InvokeVoidAsync("window.registerIframeLoad", iframeRef, objRef);
+        }
+    }
+
+    [JSInvokable]
+    public void OnIframeLoaded()
+    {
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        objRef?.Dispose();
+    }
+}

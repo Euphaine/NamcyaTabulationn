@@ -1,0 +1,174 @@
+@page "/leaderboard"
+@layout NamcyaTabulation.Components.Layout.PublicLayout
+@implements IDisposable
+@using Microsoft.EntityFrameworkCore
+@using NamcyaTabulation.Data
+@using NamcyaTabulation.Models
+@using NamcyaTabulation.Services
+@inject AppDbContext DbContext
+@inject TabulationService TabService
+@inject ScoreBroadcastService ScoreBroadcaster
+@inject IJSRuntime JS
+
+<PageTitle>Live Audience Leaderboard</PageTitle>
+
+<div class="container-fluid mt-2">
+    <div class="d-flex justify-content-start mb-4">
+        <a href="/admin-panel" class="btn liquid-btn text-white shadow-sm" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+            <i class="bi bi-arrow-left me-2"></i> Back to Admin
+        </a>
+    </div>
+
+    <!-- Top Event Selection -->
+    <div class="row mb-4 justify-content-center">
+        <div class="col-md-8">
+            <div class="glass-panel shadow-sm p-3">
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text glass-input border-end-0 bg-transparent text-white"><i class="bi bi-calendar-event"></i></span>
+                    <select class="form-select glass-input border-start-0 fw-bold text-white fs-5" @onchange="OnEventDropdownChanged" value="@(SelectedEvent?.Id ?? 0)">
+                        <option value="0">-- Select an Event to View --</option>
+                        @foreach (var ev in Events)
+                        {
+                            <option value="@ev.Id">@ev.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (SelectedEvent != null)
+    {
+        <!-- Sub-Event Tabs -->
+        <ul class="nav nav-tabs justify-content-center mb-4 fs-5 border-0 gap-2">
+            @foreach (var sub in SubEvents)
+            {
+                <li class="nav-item">
+                    <button class="nav-link liquid-btn border-0 mx-1 @(SelectedSubEvent?.Id == sub.Id ? "active bg-white bg-opacity-10 text-white shadow-sm" : "text-white text-opacity-75")" 
+                            @onclick="() => SelectSubEvent(sub)">
+                        @sub.Name
+                    </button>
+                </li>
+            }
+        </ul>
+
+        @if (SelectedSubEvent != null)
+        {
+            <!-- Category Pills -->
+            <ul class="nav nav-pills justify-content-center mb-4 gap-2 border-0">
+                @foreach (var cat in Categories)
+                {
+                    <li class="nav-item">
+                        <button class="nav-link liquid-btn border-0 mx-1 @(SelectedCategory?.Id == cat.Id ? "active shadow-sm fw-bold bg-white bg-opacity-10 text-white" : "text-white text-opacity-75")" 
+                                @onclick="() => SelectCategory(cat)">
+                            @cat.Name
+                        </button>
+                    </li>
+                }
+            </ul>
+
+            @if (SelectedCategory != null)
+            {
+                <div class="glass-panel overflow-hidden fade-in mx-auto" style="max-width: 900px;">
+                    <div class="p-4 border-bottom border-white border-opacity-10 text-center">
+                        <h2 class="mb-0 fw-bold text-uppercase text-white" style="letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                            <i class="bi bi-trophy-fill text-warning me-2" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);"></i> @SelectedCategory.Name
+                        </h2>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-borderless mb-0 text-center align-middle glass-table fs-5">
+                                <thead>
+                                    <tr>
+                                        <th class="py-3" style="width: 20%;">Rank</th>
+                                        <th class="text-start py-3">Contestant</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (!Rankings.Any())
+                                    {
+                                        <tr>
+                                            <td colspan="2" class="text-white-50 py-5 fs-5">Results are currently being tabulated...</td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var rank in Rankings)
+                                        {
+                                            <tr @key="rank.ContestantId">
+                                                <td>
+                                                    @if (rank.Rank == 1) { <span class="badge bg-warning text-dark fs-4 shadow-sm px-4 py-2 rounded-pill">🏆 1st</span> }
+                                                    else if (rank.Rank == 2) { <span class="badge bg-secondary fs-4 shadow-sm px-4 py-2 rounded-pill">🥈 2nd</span> }
+                                                    else if (rank.Rank == 3) { <span class="badge fs-4 shadow-sm px-4 py-2 rounded-pill" style="background-color: #cd7f32; color: white;">🥉 3rd</span> }
+                                                    else { <span class="badge bg-white bg-opacity-10 text-white border border-light border-opacity-10 fs-4 px-4 py-2 rounded-pill">@rank.Rank</span> }
+                                                </td>
+                                                <td class="text-start fw-bold text-white fs-4 py-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                                                    @rank.ContestantName
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private List<Event> Events = new();
+    private List<SubEvent> SubEvents = new();
+    private List<Category> Categories = new();
+    
+    private Event? SelectedEvent;
+    private SubEvent? SelectedSubEvent;
+    private Category? SelectedCategory;
+
+    private List<TabulationResult> Rankings = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Events = await DbContext.Events.ToListAsync();
+        ScoreBroadcaster.OnScoreUpdated += HandleScoreUpdate;
+        
+        if (Events.Any()) { await SelectEvent(Events.First()); }
+    }
+
+    private async Task OnEventDropdownChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int eventId) && eventId > 0)
+        {
+            var ev = Events.FirstOrDefault(x => x.Id == eventId);
+            if (ev != null) await SelectEvent(ev);
+        }
+        else { SelectedEvent = null; SelectedSubEvent = null; SelectedCategory = null; SubEvents.Clear(); Categories.Clear(); Rankings.Clear(); }
+    }
+
+    private async Task SelectEvent(Event ev)
+    {
+        SelectedEvent = ev; SelectedSubEvent = null; SelectedCategory = null; SubEvents.Clear(); Categories.Clear(); Rankings.Clear();
+        SubEvents = await DbContext.SubEvents.Where(s => s.EventId == ev.Id).ToListAsync();
+        if (SubEvents.Any()) { await SelectSubEvent(SubEvents.First()); }
+    }
+
+    private async Task SelectSubEvent(SubEvent sub)
+    {
+        SelectedSubEvent = sub; SelectedCategory = null; Categories.Clear(); Rankings.Clear();
+        Categories = await DbContext.Categories.Where(c => c.SubEventId == sub.Id).ToListAsync();
+        if (Categories.Any()) { await SelectCategory(Categories.First()); }
+    }
+
+    private async Task SelectCategory(Category cat) { SelectedCategory = cat; await RefreshScores(); }
+
+    private async Task RefreshScores() { if (SelectedCategory != null) { Rankings = await TabService.GetRankingAsync(SelectedCategory.Id); } }
+
+    private async void HandleScoreUpdate(int categoryId)
+    {
+        if (SelectedCategory != null && SelectedCategory.Id == categoryId) { await InvokeAsync(async () => { await RefreshScores(); StateHasChanged(); }); }
+    }
+
+    public void Dispose() { ScoreBroadcaster.OnScoreUpdated -= HandleScoreUpdate; }
+}

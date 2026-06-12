@@ -1,0 +1,7 @@
+.sticky-form-top {
+    top: 20px;
+}
+.sub-events-list {
+    max-height: 200px;
+    overflow-y: auto;
+}

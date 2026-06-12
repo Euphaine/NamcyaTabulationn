@@ -1,0 +1,15 @@
+.header-dark {
+    background-color: #052767;
+}
+.header-dark-text {
+    color: #052767;
+}
+.btn-dark-custom {
+    background-color: #052767;
+}
+.sticky-form-top {
+    top: 20px;
+}
+.sticky-form-bottom {
+    top: 250px;
+}

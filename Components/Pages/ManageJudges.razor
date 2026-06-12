@@ -1,0 +1,184 @@
+@page "/admin/judges"
+@using Microsoft.EntityFrameworkCore
+@using NamcyaTabulation.Data
+@using NamcyaTabulation.Models
+@using NamcyaTabulation.Services
+@inject AppDbContext DbContext
+@inject OrganizerAuthService AuthService
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
+
+<PageTitle>Manage Judges</PageTitle>
+
+@if (AuthService.CurrentOrganizer != null)
+{
+    <div class="container-fluid mt-4 mb-5 fade-in">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Manage Judges</h2>
+            <a href="/admin-panel" class="btn btn-sm liquid-btn text-white shadow-sm"><i class="bi bi-arrow-left"></i> Back to Hub</a>
+        </div>
+
+        <div class="row g-4">
+            <!-- Data Lists Column -->
+            <div class="col-md-8">
+                <!-- Judges -->
+                <div class="glass-panel overflow-hidden mb-4">
+                    <div class="p-4 border-bottom border-white border-opacity-10">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-person-vcard me-2"></i> Judges</h5>
+                    </div>
+                    <div class="p-0">
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0 glass-table">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-3">ID</th>
+                                        <th>Judge Name</th>
+                                        <th>Access PIN</th>
+                                        <th>Assigned Sub-Events</th>
+                                        <th class="text-end pe-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (!Judges.Any())
+                                    {
+                                        <tr><td colspan="5" class="text-center text-white-50 py-5">No judges found.</td></tr>
+                                    }
+                                    @foreach (var judge in Judges)
+                                    {
+                                        <tr>
+                                            <td class="ps-3">@judge.Id</td>
+                                            <td class="fw-bold text-white">@judge.Name</td>
+                                            <td><code class="text-info fs-6">@judge.PinCode</code></td>
+                                            <td>
+                                                @if(judge.SubEvents != null && judge.SubEvents.Any())
+                                                {
+                                                    <span class="badge bg-white bg-opacity-25 border border-white border-opacity-10 text-white shadow-sm">@string.Join(", ", judge.SubEvents.Select(s => s.Name))</span>
+                                                }
+                                                else { <span class="text-white-50 small">None</span> }
+                                            </td>
+                                            <td class="text-end pe-3">
+                                                <button class="btn btn-sm liquid-btn text-white me-2" @onclick="() => EditJudge(judge)">Edit</button>
+                                                <button class="btn btn-sm liquid-btn text-danger" @onclick="() => DeleteJudge(judge)">Delete</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Forms Column -->
+            <div class="col-md-4">
+                <div class="glass-panel overflow-hidden sticky-top" style="top: 2rem;">
+                    <div class="p-4 border-bottom border-white border-opacity-10">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i> @(currentJudge.Id == 0 ? "Create New Judge" : "Edit Judge")</h5>
+                    </div>
+                    <div class="p-4">
+                        <form @onsubmit="SaveJudge" @onsubmit:preventDefault="true">
+                            <div class="mb-3">
+                                <label class="form-label text-white-50">Judge Name</label>
+                                <input type="text" class="form-control glass-input text-white" @bind="currentJudge.Name" placeholder="e.g., John Doe" required />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-white-50">Access PIN (Auto-Generated)</label>
+                                <input type="text" class="form-control glass-input fw-bold text-info" style="letter-spacing: 2px;" @bind="currentJudge.PinCode" maxlength="6" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-white-50">Assign to Sub-Events</label>
+                                <div class="p-3 rounded glass-input sub-events-list" style="max-height: 250px; overflow-y: auto;">
+                                    @if (!SubEvents.Any())
+                                    {
+                                        <span class="text-white-50 small">No sub-events available.</span>
+                                    }
+                                    @foreach (var sub in SubEvents)
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="sub_@sub.Id" checked="@selectedJudgeSubEventIds.Contains(sub.Id)" @onchange="@(e => ToggleJudgeSubEvent(sub.Id, e.Value))" />
+                                            <label class="form-check-label text-white" for="sub_@sub.Id">@sub.Name</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-4 pt-3 border-top border-white border-opacity-10">
+                                <button type="submit" class="btn liquid-btn w-100 text-white fw-bold">Save Judge</button>
+                                @if(currentJudge.Id != 0) { <button type="button" class="btn liquid-btn text-white-50" @onclick="ClearJudgeForm">Cancel</button> }
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Judge> Judges = new();
+    private List<SubEvent> SubEvents = new();
+    
+    private Judge currentJudge = new Judge { PinCode = GeneratePin() };
+    private HashSet<int> selectedJudgeSubEventIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.InitializeSessionAsync();
+        if (AuthService.CurrentOrganizer == null)
+        {
+            NavManager.NavigateTo("/");
+            return;
+        }
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        Judges = await DbContext.Judges.Include(j => j.SubEvents).ToListAsync();
+        SubEvents = await DbContext.SubEvents.ToListAsync();
+    }
+
+    private static string GeneratePin() => new Random().Next(100000, 999999).ToString();
+
+    private void EditJudge(Judge judge)
+    {
+        currentJudge = new Judge { Id = judge.Id, Name = judge.Name, PinCode = judge.PinCode };
+        selectedJudgeSubEventIds = judge.SubEvents?.Select(s => s.Id).ToHashSet() ?? new HashSet<int>();
+    }
+
+    private void ClearJudgeForm() { currentJudge = new Judge { PinCode = GeneratePin() }; selectedJudgeSubEventIds.Clear(); }
+
+    private void ToggleJudgeSubEvent(int subEventId, object? checkedValue) { if (checkedValue is bool isChecked) { if (isChecked) selectedJudgeSubEventIds.Add(subEventId); else selectedJudgeSubEventIds.Remove(subEventId); } }
+
+    private async Task SaveJudge()
+    {
+        if (string.IsNullOrWhiteSpace(currentJudge.Name)) return;
+        var selectedSubs = await DbContext.SubEvents.Where(s => selectedJudgeSubEventIds.Contains(s.Id)).ToListAsync();
+
+        if (currentJudge.Id == 0)
+        {
+            var judgeToSave = new Judge { Name = currentJudge.Name, PinCode = currentJudge.PinCode, SubEvents = selectedSubs };
+            DbContext.Judges.Add(judgeToSave);
+        }
+        else
+        {
+            var existing = await DbContext.Judges.Include(j => j.SubEvents).FirstOrDefaultAsync(j => j.Id == currentJudge.Id);
+            if (existing != null)
+            {
+                existing.Name = currentJudge.Name;
+                existing.PinCode = currentJudge.PinCode;
+                existing.SubEvents.Clear();
+                foreach(var s in selectedSubs) { existing.SubEvents.Add(s); }
+                DbContext.Judges.Update(existing);
+            }
+        }
+        await DbContext.SaveChangesAsync();
+        ClearJudgeForm();
+        await LoadData();
+    }
+
+    private async Task DeleteJudge(Judge judge)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete judge '{judge.Name}'? This may orphan their submitted scores.");
+        if (confirmed) { DbContext.Judges.Remove(judge); await DbContext.SaveChangesAsync(); await LoadData(); }
+    }
+}

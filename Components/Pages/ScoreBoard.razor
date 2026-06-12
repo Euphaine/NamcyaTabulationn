@@ -1,0 +1,375 @@
+﻿@page "/scoreboard"
+@implements IDisposable
+@using Microsoft.EntityFrameworkCore
+@using NamcyaTabulation.Data
+@using NamcyaTabulation.Models
+@using NamcyaTabulation.Services
+@inject AppDbContext DbContext
+@inject TabulationService TabService
+@inject ScoreBroadcastService ScoreBroadcaster
+@inject IJSRuntime JS
+@inject OrganizerAuthService AuthService
+
+<PageTitle>Live Scoreboard</PageTitle>
+
+<style>
+    @@media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .print-card { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
+        .glass-table th { background-color: #f8f9fa !important; color: #000 !important; border-bottom: 2px solid #000 !important; }
+        .glass-table td { border-bottom: 1px solid #dee2e6 !important; }
+    }
+</style>
+
+<!-- Print-Only Watermark -->
+<div class="d-none d-print-flex justify-content-center align-items-center position-fixed w-100 h-100" style="top: 0; left: 0; z-index: -1; opacity: 0.05;">
+    <img src="/images/namcya_logo.png" style="width: 70%; max-width: 600px;" alt="Watermark" />
+</div>
+
+<div class="container-fluid mt-4">
+    <!-- Top Event Selection -->
+    <div class="row mb-4 align-items-center d-print-none">
+        <div class="col-md-8">
+            <h2 class="text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Live Tabulation Scoreboard</h2>
+        </div>
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text glass-input border-end-0 bg-transparent text-white">Event</span>
+                <select class="form-select glass-input border-start-0" @onchange="OnEventDropdownChanged" value="@(SelectedEvent?.Id ?? 0)">
+                    <option value="0">-- Select Event --</option>
+                    @foreach (var ev in Events)
+                    {
+                        <option value="@ev.Id">@ev.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    @if (SelectedEvent != null)
+    {
+        if (!SubEvents.Any())
+        {
+            <div class="alert bg-white bg-opacity-10 text-white border-0 text-center mt-4 p-4 rounded-4 shadow-sm fade-in">
+                <i class="bi bi-folder-x fs-1 d-block mb-2 text-white-50"></i>
+                <h5 class="fw-bold">No Sub-Events Found</h5>
+                <p class="text-white-50 mb-0">Please create Sub-Events for this Main Event in the Admin Panel.</p>
+            </div>
+        }
+        else
+        {
+        <!-- Sub-Event Tabs -->
+        <ul class="nav nav-tabs mb-4 d-print-none">
+            @foreach (var sub in SubEvents)
+            {
+                <li class="nav-item">
+                    <button class="nav-link liquid-btn border-0 mx-1 @(SelectedSubEvent?.Id == sub.Id ? "active bg-white bg-opacity-10 text-white shadow-sm" : "text-white text-opacity-75")" 
+                            @onclick="() => SelectSubEvent(sub)">
+                        @sub.Name
+                    </button>
+                </li>
+            }
+        </ul>
+
+        @if (SelectedSubEvent != null)
+        {
+            if (!Categories.Any())
+            {
+                <div class="alert bg-white bg-opacity-10 text-white border-0 text-center mt-4 p-4 rounded-4 shadow-sm fade-in">
+                    <i class="bi bi-tags fs-1 d-block mb-2 text-white-50"></i>
+                    <h5 class="fw-bold">No Categories Found</h5>
+                    <p class="text-white-50 mb-0">Please create Categories for this Sub-Event in the Admin Panel.</p>
+                </div>
+            }
+            else
+            {
+            <!-- Category Pills -->
+            <ul class="nav nav-pills mb-4 gap-2 d-print-none">
+                @foreach (var cat in Categories)
+                {
+                    <li class="nav-item">
+                        <button class="nav-link liquid-btn border-0 mx-1 @(SelectedCategory?.Id == cat.Id ? "active shadow-sm fw-bold bg-white bg-opacity-10 text-white" : "text-white text-opacity-75")" 
+                                @onclick="() => SelectCategory(cat)">
+                            @cat.Name
+                        </button>
+                    </li>
+                }
+            </ul>
+
+            @if (SelectedCategory != null)
+            {
+        <!-- Print-Only Header -->
+        <div class="d-none d-print-block text-center mb-5">
+            <img src="/images/namcya_logo.png" style="max-height: 100px;" alt="NAMCYA Logo" />
+            <h2 class="mt-3 fw-bold text-uppercase" style="letter-spacing: 2px;">Official Tabulation Results</h2>
+            <h4 class="mb-1 fw-bold">@SelectedEvent?.Name</h4>
+            <h5 class="text-muted">@SelectedSubEvent?.Name &mdash; @SelectedCategory?.Name</h5>
+        </div>
+
+        <div class="glass-panel overflow-hidden fade-in print-card">
+            <div class="d-flex justify-content-between align-items-center p-4 d-print-none border-bottom border-light border-opacity-10">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-trophy-fill me-2"></i> Official Rankings: @SelectedCategory?.Name</h4>
+                <div class="d-print-none">
+                    <button class="btn btn-sm fw-bold shadow-sm me-2 liquid-btn" @onclick="PrintToPdf">
+                        <i class="bi bi-printer me-1"></i> Print / PDF
+                    </button>
+                    <a href="/judge-breakdown/@SelectedCategory?.Id" target="_blank" class="btn btn-sm fw-bold shadow-sm liquid-btn">
+                        <i class="bi bi-eye me-1"></i> View Judge Breakdown
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0 text-center align-middle glass-table">
+                        <thead>
+                        <tr>
+                            <th class="col-rank">Rank</th>
+                            <th class="col-contestant">Contestant</th>
+                            <th class="col-score">Rank Sum</th>
+                            <th class="col-score">Average Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Rankings.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-muted py-4">No contestants registered for this category yet.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var rank in Rankings)
+                            {
+                                <tr @key="rank.ContestantId">
+                                    <td>
+                                        @if (rank.FinalScore == 0 && rank.Rank == 0) { <span class="badge bg-white bg-opacity-10 text-white-50 border border-light border-opacity-10 fs-6 px-3 py-2">-</span> }
+                                        else if (rank.Rank == 1) { <span class="badge bg-warning text-dark fs-6 shadow-sm px-3 py-2">🏆 1st</span> }
+                                        else if (rank.Rank == 2) { <span class="badge bg-secondary fs-6 shadow-sm px-3 py-2">🥈 2nd</span> }
+                                        else if (rank.Rank == 3) { <span class="badge fs-6 shadow-sm px-3 py-2" style="background-color: #cd7f32; color: white;">🥉 3rd</span> }
+                                        else { <span class="badge bg-white bg-opacity-10 text-white border border-light border-opacity-10 fs-6 px-3 py-2">@rank.Rank</span> }
+                                    </td>
+                                    <td class="text-start fw-bold text-white fs-5" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                                        @rank.ContestantName
+                                    </td>
+                                    <td>
+                                        @if (rank.FinalScore == 0 && rank.Rank == 0) { <span class="badge bg-white bg-opacity-10 text-white-50 border border-light border-opacity-10 fs-6 px-3 py-2">-</span> }
+                                        else { <span class="badge bg-white bg-opacity-10 text-white border border-light border-opacity-10 fs-6 px-3 py-2">@rank.RankSum.ToString("0.##")</span> }
+                                    </td>
+                                    <td>
+                                        @if (rank.FinalScore == 0 && rank.Rank == 0) { <span class="badge bg-white bg-opacity-10 text-white-50 border border-light border-opacity-10 fs-6 px-3 py-2">-</span> }
+                                        else { <span class="badge bg-success bg-opacity-50 text-white border border-light border-opacity-10 fs-6 shadow-sm px-3 py-2">@rank.FinalScore.ToString("F" + decimalPrecision)</span> }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Print-Only Signatures & Footer -->
+        <div class="d-none d-print-block mt-5 pt-5">
+            <div class="row text-center mt-5 pt-4 justify-content-center">
+                @if (AssignedJudges.Any())
+                {
+                    @foreach (var judge in AssignedJudges)
+                    {
+                        <div class="col-4 mb-5">
+                            <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                            <div class="mt-2 fw-bold text-uppercase">@judge.Name</div>
+                            <div class="small text-muted">
+                                @(judge.Id == (SelectedSubEvent?.ChairmanJudgeId ?? AssignedJudges.FirstOrDefault()?.Id) ? "Chairman, Board of Judges" : "Member, Board of Judges")
+                            </div>
+                        </div>
+                    }
+                    <div class="col-12 mt-2"></div>
+                    <div class="col-4 mb-5">
+                        <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                        <div class="mt-2 fw-bold text-uppercase">@AuthService.CurrentOrganizer?.Username</div>
+                        <div class="small text-muted">Official Tabulator</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-4 mb-5">
+                        <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                        <div class="mt-2 fw-bold">Chairman of the Board</div>
+                    </div>
+                }
+            </div>
+            <div class="text-center mt-5 pt-3 text-muted" style="font-size: 0.85rem;">
+                <p class="mb-1 fw-bold text-dark">NAMCYA - National Music Competitions for Young Artists</p>
+                <p class="mb-1">www.namcya.com | namcya@gmail.com | 8836-4928 / 0949 993 2592</p>
+                <p class="mb-0 fst-italic">Generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' hh:mm tt")</p>
+            </div>
+        </div>
+            }
+            }
+        }
+        }
+        }
+    }
+
+   
+
+    <!-- Real-time Toast Notification -->
+    @if (showToast)
+    {
+        <div class="toast-container position-fixed bottom-0 end-0 p-3 toast-wrapper">
+            <div class="toast show align-items-center text-bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body fw-bold">
+                        <i class="bi bi-check-circle me-2"></i> @toastMessage
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" @onclick="() => showToast = false"></button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Event> Events = new();
+    private List<SubEvent> SubEvents = new();
+    private List<Category> Categories = new();
+    
+    private Event? SelectedEvent;
+    private SubEvent? SelectedSubEvent;
+    private Category? SelectedCategory;
+    private List<Judge> AssignedJudges = new();
+
+    private bool showToast = false;
+    private string toastMessage = "";
+
+    private List<TabulationResult> Rankings = new();
+    private int decimalPrecision = 2;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.InitializeSessionAsync();
+        Events = await DbContext.Events.AsNoTracking().ToListAsync();
+        
+        ScoreBroadcaster.OnScoreUpdated += HandleScoreUpdate;
+        
+        try
+        {
+            var settings = await DbContext.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
+            if (settings != null) decimalPrecision = settings.DecimalPrecision;
+        }
+        catch
+        {
+            // Safe fallback if the SystemSettings table is empty or unavailable
+        }
+
+        // Auto-select the first event on load
+        if (Events.Any())
+        {
+            await SelectEvent(Events.First());
+        }
+    }
+
+    private async Task OnEventDropdownChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int eventId) && eventId > 0)
+        {
+            var ev = Events.FirstOrDefault(x => x.Id == eventId);
+            if (ev != null) await SelectEvent(ev);
+        }
+        else
+        {
+            SelectedEvent = null;
+            SelectedSubEvent = null;
+            SelectedCategory = null;
+            SubEvents.Clear();
+            Categories.Clear();
+            Rankings.Clear();
+        }
+    }
+
+    private async Task SelectEvent(Event ev)
+    {
+        SelectedEvent = ev;
+        SelectedSubEvent = null;
+        SelectedCategory = null;
+        SubEvents.Clear();
+        Categories.Clear();
+        Rankings.Clear();
+
+        SubEvents = await DbContext.SubEvents.AsNoTracking().Where(s => s.EventId == ev.Id).ToListAsync();
+        
+        // Auto-select the first Sub-Event
+        if (SubEvents.Any())
+        {
+            await SelectSubEvent(SubEvents.First());
+        }
+    }
+
+    private async Task SelectSubEvent(SubEvent sub)
+    {
+        SelectedSubEvent = sub;
+        SelectedCategory = null;
+        Categories.Clear();
+        Rankings.Clear();
+        
+        AssignedJudges = await DbContext.Judges.AsNoTracking().Where(j => j.SubEvents.Any(s => s.Id == sub.Id)).ToListAsync();
+
+        Categories = await DbContext.Categories.AsNoTracking().Where(c => c.SubEventId == sub.Id).ToListAsync();
+        
+        // Auto-select the first Category
+        if (Categories.Any())
+        {
+            await SelectCategory(Categories.First());
+        }
+    }
+
+    private async Task SelectCategory(Category cat)
+    {
+        SelectedCategory = cat;
+        await RefreshScores();
+    }
+
+    private async Task RefreshScores()
+    {
+        if (SelectedCategory != null)
+        {
+            Rankings = await TabService.GetRankingAsync(SelectedCategory.Id);
+        }
+    }
+
+    private async void HandleScoreUpdate(int categoryId)
+    {
+        if (SelectedCategory != null && SelectedCategory.Id == categoryId)
+        {
+            await InvokeAsync(async () =>
+            {
+                await RefreshScores();
+                ShowToast("New scores received! Rankings updated.");
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async void ShowToast(string message)
+    {
+        toastMessage = message;
+        showToast = true;
+        StateHasChanged();
+        
+        await Task.Delay(4000); // Hide after 4 seconds
+        
+        showToast = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PrintToPdf()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    public void Dispose()
+    {
+        ScoreBroadcaster.OnScoreUpdated -= HandleScoreUpdate;
+    }
+
+}

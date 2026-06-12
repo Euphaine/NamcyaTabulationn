@@ -1,0 +1,65 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<div class="d-flex flex-column min-vh-100">
+    <!-- The WebGL Shader Background Container -->
+    <div id="shader-bg-container" class="position-fixed w-100 h-100 top-0 start-0" style="z-index: -2;"></div>
+
+    <div class="w-100 d-flex justify-content-center d-print-none">
+        <nav class="navbar rounded-pill mt-4 mb-4 px-5 py-2 dynamic-island" style="min-width: 250px; z-index: 1000;">
+            <div class="position-absolute w-100 h-100 top-0 start-0 liquid-backdrop" style="z-index: -1;"></div>
+            <div class="navbar-brand fw-bold mb-0 text-white m-0 d-flex align-items-center" style="letter-spacing: 0.5px; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                <img src="/images/namcya_logo.png" alt="Logo" style="height: 28px;" class="me-2" />
+                Live Audience Leaderboard
+            </div>
+        </nav>
+    </div>
+
+    <main class="flex-grow-1 px-3 pb-5 container-fluid page-transition" @key="NavManager.Uri">
+        @Body
+    </main>
+</div>
+
+<!-- Genuine SVG Refraction Filter -->
+<svg style="position: absolute; width: 0; height: 0; pointer-events: none;" aria-hidden="true">
+    <defs>
+        <filter id="liquid-refraction" color-interpolation-filters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="1" seed="1" result="turbulence" />
+            <feGaussianBlur in="turbulence" stdDeviation="2" result="blurredNoise" />
+            <feDisplacementMap in="SourceGraphic" in2="blurredNoise" scale="12" xChannelSelector="R" yChannelSelector="B" result="displaced" />
+        </filter>
+    </defs>
+</svg>
+
+<div id="blazor-error-ui" data-nosnippet="true">
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NavManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initShaderBackground", "shader-bg-container");
+        }
+    }
+
+    public void Dispose()
+    {
+        NavManager.LocationChanged -= OnLocationChanged;
+    }
+}

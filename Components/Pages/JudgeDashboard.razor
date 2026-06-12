@@ -1,0 +1,478 @@
+@page "/judge"
+@using Microsoft.EntityFrameworkCore
+@using global::NamcyaTabulation.Data
+@using global::NamcyaTabulation.Models
+
+<PageTitle>Judge Dashboard</PageTitle>
+
+<div class="container mt-4">
+    @if (CurrentJudge == null)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 75vh;">
+            <div class="p-5 border-0 login-card glass-panel mx-auto" style="max-width: 450px; width: 100%;">
+                <div class="text-center mb-4">
+                    <img src="/images/namcya_logo.png" alt="NAMCYA Logo" class="img-fluid mb-4" style="max-height: 120px;" />
+                    <h3 class="fw-bold text-white mb-1" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Judge Access</h3>
+                    <p class="text-white-50">Please enter your assigned PIN</p>
+                </div>
+                <form @onsubmit="Login" @onsubmit:preventDefault="true">
+                    <div class="mb-4">
+                        <input type="password" class="form-control form-control-lg glass-input text-white text-center fw-bold fs-4" @bind="AccessPin" @bind:event="oninput" placeholder="••••••" style="letter-spacing: 0.5rem;" maxlength="6" />
+                    </div>
+                    <button type="submit" class="btn btn-lg w-100 fw-bold shadow-sm liquid-btn text-white">Enter Dashboard</button>
+                </form>
+                @if (LoginError)
+                {
+                    <div class="alert alert-danger mt-4 mb-0 text-center fw-bold">Invalid PIN. Try again.</div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="mb-0 text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Judge Dashboard</h3>
+                @if (SelectedSubEvent != null)
+                {
+                    <span class="text-white-50">Judging for: <strong>@(SelectedSubEvent.Event?.Name != null ? SelectedSubEvent.Event.Name + " - " : "")@SelectedSubEvent.Name</strong></span>
+                }
+            </div>
+            <div>
+                <span class="me-3 d-none d-md-inline text-white">Judge: <strong>@CurrentJudge.Name</strong></span>
+                <button class="btn btn-danger btn-sm shadow-sm" @onclick="Logout">Logout</button>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div>
+                    <label class="form-label text-white-50">Assigned Sub-Event</label>
+                    <select class="form-select glass-input text-white" @onchange="OnSubEventChanged">
+                        <option value="0">-- Select Sub-Event --</option>
+                        @foreach (var sub in SubEvents)
+                        {
+                            <option value="@sub.Id">@sub.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            
+            @if (SelectedSubEvent != null)
+            {
+                <div class="col-md-6">
+                    <div>
+                        <label class="form-label text-white-50">Category</label>
+                        <select class="form-select glass-input text-white" @onchange="OnCategoryChanged">
+                            <option value="0">-- Select Category --</option>
+                            @foreach (var cat in Categories)
+                            {
+                                <option value="@cat.Id">@cat.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (SelectedCategory != null)
+        {
+            if (!Contestants.Any())
+            {
+                <div class="alert bg-white bg-opacity-10 text-white border-0 text-center">No contestants found for this category.</div>
+            }
+            else
+            {
+                if (RecapList.Any(r => r.HasTie))
+                {
+                    <div class="alert bg-danger bg-opacity-25 text-white border-0 d-flex align-items-center mb-4">
+                        <div>
+                            <h6 class="mb-0">Tie Detected!</h6>
+                            <small>Contestants should not have the same total score. Please adjust the scores below.</small>
+                        </div>
+                    </div>
+                }
+
+                if (SaveSuccess)
+                {
+                    <div class="alert alert-success alert-dismissible fade show mb-4">
+                        <strong>Success!</strong> Scores submitted successfully.
+                        <button type="button" class="btn-close" @onclick="() => SaveSuccess = false"></button>
+                    </div>
+                }
+
+                @if (IsScoringLocked)
+                {
+                    <div class="alert bg-warning bg-opacity-25 text-white border-0 d-flex align-items-center mb-4">
+                        <i class="bi bi-lock-fill me-2 fs-4"></i>
+                        <div>
+                            <h6 class="mb-0 fw-bold">Scoring is Locked</h6>
+                            <small>The organizer has temporarily paused scoring. You cannot submit or change scores at this time.</small>
+                        </div>
+                    </div>
+                }
+
+                <!-- Master-Detail Scoring Layout -->
+                <div class="row g-4">
+                    <!-- Left Column: Contestant List -->
+                    <div class="col-lg-4">
+                        <div class="glass-panel overflow-hidden">
+                            <div class="p-4 border-bottom border-white border-opacity-10">
+                                <h5 class="mb-0 fw-bold"><i class="bi bi-people-fill me-2"></i> Contestants</h5>
+                            </div>
+                            <div class="list-group list-group-flush p-2">
+                                @foreach (var recap in RecapList.OrderBy(c => c.ContestantName))
+                                {
+                                    <button type="button" 
+                                            class="list-group-item list-group-item-action contestant-list-item d-flex justify-content-between align-items-center @(SelectedContestant?.Id == recap.ContestantId ? "active" : "")"
+                                            @onclick="() => ToggleScoring(recap.ContestantId)">
+                                        <span class="fw-bold">@recap.ContestantName</span>
+                                        @if (recap.TotalScore > 0)
+                                        {
+                                            <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                                        }
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Scoring Form -->
+                    <div class="col-lg-8">
+                        @if (SelectedContestant != null)
+                        {
+                            <div class="glass-panel fade-in">
+                                <div class="p-4 border-bottom border-white border-opacity-10">
+                                    <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i> Scoring: @SelectedContestant.Name</h5>
+                                </div>
+                                <div class="p-4">
+                                    <form @onsubmit="SaveScores" @onsubmit:preventDefault="true">
+                                        <div class="table-responsive">
+                                            <table class="table align-middle mb-0 glass-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="text-start">Criterion</th>
+                                                        <th class="text-center" style="width: 15%;">Max</th>
+                                                        <th class="text-end" style="width: 25%;">Points</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var crit in Criteria)
+                                                    {
+                                                        var score = CurrentScores.FirstOrDefault(s => s.CriterionId == crit.Id);
+                                                        if (score != null)
+                                                        {
+                                                            <tr>
+                                                                <td class="text-start">@crit.Name</td>
+                                                                <td class="text-center">@crit.MaxScore</td>
+                                                                <td>
+                                                                    <input type="number" class="form-control glass-input text-white text-end" @bind="score.Points" max="@crit.MaxScore" min="0" step="0.5" required onfocus="this.select()" disabled="@IsScoringLocked" />
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-4 pt-4 border-top border-white border-opacity-10">
+                                            <span class="text-white-50 small">Auto-calculated upon submission.</span>
+                                            <button type="submit" class="btn liquid-btn fw-bold text-white" disabled="@IsScoringLocked">Submit Score</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="glass-panel d-flex align-items-center justify-content-center text-center" style="min-height: 400px;">
+                                <div>
+                                    <i class="bi bi-arrow-left-circle-fill fs-1 mb-3 text-white-50"></i>
+                                    <h5 class="text-white-50">Select a contestant to begin scoring.</h5>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="glass-panel mb-4 overflow-hidden fade-in">
+                    <div class="d-flex justify-content-between align-items-center p-4 border-bottom border-white border-opacity-10">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-trophy me-2"></i> Your Finalization Rankings</h5>
+                        <span class="badge bg-white bg-opacity-10 border-0 fw-bold shadow-sm px-3 py-2">Check for ties</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-borderless mb-0 text-center align-middle glass-table">
+                                <thead>
+                                <tr>
+                                    <th style="width: 15%;">Rank</th>
+                                    <th class="text-start">Contestant</th>
+                                    <th style="width: 20%;">Total Score</th>
+                                    <th style="width: 20%;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var recap in RecapList.OrderByDescending(r => r.TotalScore))
+                                {
+                                    <tr class="@(recap.HasTie ? "bg-danger bg-opacity-10" : "")">
+                                        <td>
+                                            @if (recap.TotalScore > 0)
+                                            {
+                                                <span class="badge bg-white bg-opacity-10 border-0 fs-6 shadow-sm px-3 py-2">@recap.Rank</span>
+                                            }
+                                            else
+                                            {
+                                                <span>-</span>
+                                            }
+                                        </td>
+                                        <td class="text-start fw-bold text-white fs-5" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">@recap.ContestantName</td>
+                                        <td><span class="badge bg-success bg-opacity-50 border-0 fs-6 shadow-sm px-3 py-2">@recap.TotalScore.ToString("0.00")</span></td>
+                                        <td>
+                                            @if (recap.HasTie)
+                                            {
+                                                <span class="badge bg-danger bg-opacity-50 border-0 shadow-sm px-3 py-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Tie Detected</span>
+                                            }
+                                            else if (recap.TotalScore > 0)
+                                            {
+                                                <span class="badge bg-success bg-opacity-50 border-0 shadow-sm px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i> Clear</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-white bg-opacity-10 text-white-50 border-0 px-3 py-2">Unscored</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    [Inject] public AppDbContext DbContext { get; set; } = default!;
+    [Inject] public NamcyaTabulation.Services.ScoreBroadcastService ScoreBroadcaster { get; set; } = default!;
+    [Inject] public IJSRuntime JS { get; set; } = default!;
+
+    public string AccessPin { get; set; } = string.Empty;
+    public bool LoginError { get; set; } = false;
+    public bool SaveSuccess { get; set; } = false;
+    public bool IsScoringLocked { get; set; } = false;
+
+    public Judge? CurrentJudge { get; set; }
+    public SubEvent? SelectedSubEvent { get; set; }
+    public Category? SelectedCategory { get; set; }
+    public Contestant? SelectedContestant { get; set; }
+
+    public List<SubEvent> SubEvents { get; set; } = new();
+    public List<Category> Categories { get; set; } = new();
+    public List<Contestant> Contestants { get; set; } = new();
+    public List<Criterion> Criteria { get; set; } = new();
+    public List<ScoreSheet> CurrentScores { get; set; } = new();
+    
+    public List<ContestantRecap> RecapList { get; set; } = new();
+
+    public class ContestantRecap
+    {
+        public int ContestantId { get; set; }
+        public string ContestantName { get; set; } = string.Empty;
+        public decimal TotalScore { get; set; }
+        public int Rank { get; set; }
+        public bool HasTie { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var settings = await DbContext.SystemSettings.FirstOrDefaultAsync();
+            IsScoringLocked = settings?.LockScoring ?? false;
+        }
+        catch
+        {
+            // Failsafe in case database isn't fully migrated yet
+            IsScoringLocked = false;
+        }
+    }
+
+    public async Task Login()
+    {
+        LoginError = false;
+        var judge = await DbContext.Judges
+            .Include(j => j.SubEvents)
+            .ThenInclude(s => s.Event)
+            .FirstOrDefaultAsync(j => j.PinCode == AccessPin);
+
+        if (judge != null)
+        {
+            CurrentJudge = judge;
+            SubEvents = judge.SubEvents.ToList();
+        }
+        else
+        {
+            LoginError = true;
+        }
+    }
+
+    public void Logout()
+    {
+        CurrentJudge = null;
+        AccessPin = string.Empty;
+        SelectedSubEvent = null;
+        SelectedCategory = null;
+        SelectedContestant = null;
+        SubEvents.Clear();
+        Categories.Clear();
+        Contestants.Clear();
+        Criteria.Clear();
+        RecapList.Clear();
+        CurrentScores.Clear();
+    }
+
+    public async Task OnSubEventChanged(ChangeEventArgs e)
+    {
+        SelectedCategory = null;
+        SelectedContestant = null;
+        Categories.Clear();
+        Contestants.Clear();
+        Criteria.Clear();
+        RecapList.Clear();
+
+        if (int.TryParse(e.Value?.ToString(), out int subEventId) && subEventId > 0)
+        {
+            SelectedSubEvent = SubEvents.FirstOrDefault(s => s.Id == subEventId);
+            if (SelectedSubEvent != null)
+            {
+                Categories = await DbContext.Categories.Where(c => c.SubEventId == subEventId).ToListAsync();
+                Criteria = await DbContext.Criteria.Where(c => c.SubEventId == subEventId).ToListAsync();
+            }
+        }
+        else
+        {
+            SelectedSubEvent = null;
+        }
+    }
+
+    public async Task OnCategoryChanged(ChangeEventArgs e)
+    {
+        SelectedContestant = null;
+        Contestants.Clear();
+        RecapList.Clear();
+
+        if (int.TryParse(e.Value?.ToString(), out int categoryId) && categoryId > 0)
+        {
+            SelectedCategory = Categories.FirstOrDefault(c => c.Id == categoryId);
+            if (SelectedCategory != null)
+            {
+                Contestants = await DbContext.Contestants.Where(c => c.CategoryId == categoryId).ToListAsync();
+                await LoadRecapList();
+            }
+        }
+        else
+        {
+            SelectedCategory = null;
+        }
+    }
+
+    public async Task ToggleScoring(int contestantId)
+    {
+        if (SelectedContestant?.Id == contestantId)
+        {
+            SelectedContestant = null;
+        }
+        else
+        {
+            SelectedContestant = Contestants.FirstOrDefault(c => c.Id == contestantId);
+            await LoadCurrentScores();
+        }
+    }
+
+    private async Task LoadCurrentScores()
+    {
+        if (SelectedContestant == null || CurrentJudge == null || SelectedCategory == null) return;
+
+        CurrentScores = await DbContext.ScoreSheets
+            .Where(s => s.ContestantId == SelectedContestant.Id && s.JudgeId == CurrentJudge.Id)
+            .ToListAsync();
+
+        foreach (var crit in Criteria)
+        {
+            if (!CurrentScores.Any(s => s.CriterionId == crit.Id))
+            {
+                CurrentScores.Add(new ScoreSheet
+                {
+                    JudgeId = CurrentJudge.Id,
+                    ContestantId = SelectedContestant.Id,
+                    CriterionId = crit.Id,
+                    Points = 0
+                });
+            }
+        }
+    }
+
+    public async Task SaveScores()
+    {
+        if (SelectedContestant == null || CurrentJudge == null || IsScoringLocked) return;
+
+        foreach (var score in CurrentScores)
+        {
+            if (score.Id == 0) {
+                DbContext.ScoreSheets.Add(score);
+            }
+            else
+            {
+                DbContext.ScoreSheets.Update(score);
+            }
+        }
+
+        await DbContext.SaveChangesAsync();
+        
+        if (SelectedCategory != null) ScoreBroadcaster.BroadcastScoreUpdate(SelectedCategory.Id);
+
+        SaveSuccess = true;
+        SelectedContestant = null; 
+        await LoadRecapList();
+    }
+
+    private async Task LoadRecapList()
+    {
+        if (CurrentJudge == null || SelectedCategory == null) return;
+
+        var allScores = await DbContext.ScoreSheets
+            .Where(s => s.JudgeId == CurrentJudge.Id && s.Contestant!.CategoryId == SelectedCategory.Id)
+            .ToListAsync();
+
+        var list = new List<ContestantRecap>();
+
+        foreach (var contestant in Contestants)
+        {
+            var total = allScores.Where(s => s.ContestantId == contestant.Id).Sum(s => s.Points);
+            list.Add(new ContestantRecap { ContestantId = contestant.Id, ContestantName = contestant.Name, TotalScore = total });
+        }
+
+        var sorted = list.OrderByDescending(l => l.TotalScore).ToList();
+        int rank = 1;
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            if (sorted[i].TotalScore > 0)
+            {
+                if (i > 0 && sorted[i].TotalScore == sorted[i - 1].TotalScore)
+                {
+                    sorted[i].Rank = sorted[i - 1].Rank;
+                    sorted[i].HasTie = true;
+                    sorted[i - 1].HasTie = true;
+                }
+                else
+                {
+                    sorted[i].Rank = rank;
+                }
+            }
+            rank++;
+        }
+
+        RecapList = sorted;
+    }
+}

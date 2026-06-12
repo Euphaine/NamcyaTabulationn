@@ -1,0 +1,98 @@
+﻿﻿@using NamcyaTabulation.Services
+@implements IDisposable
+@inject OrganizerAuthService AuthService
+@inject NavigationManager NavManager
+
+<!-- Floating Mobile Toggle Button -->
+<button class="btn liquid-btn text-white d-md-none position-fixed shadow-lg d-print-none" style="bottom: 20px; right: 20px; z-index: 1060; border-radius: 50%; width: 60px; height: 60px; padding: 0;" @onclick="ToggleMobileMenu">
+    <i class="bi @(isMobileMenuOpen ? "bi-x-lg" : "bi-list")" style="font-size: 1.8rem;"></i>
+</button>
+
+<!-- Mobile Dark Overlay -->
+<div class="mobile-overlay d-md-none d-print-none @(isMobileMenuOpen ? "mobile-open" : "")" @onclick="ToggleMobileMenu"></div>
+
+<div class="d-flex flex-column flex-shrink-0 p-3 glass-sidebar-3d sidebar-nav d-print-none @(isMobileMenuOpen ? "mobile-open" : "")" style="width: 280px;">
+    <div class="sidebar-backdrop"></div>
+    
+    <a href="/" class="d-flex align-items-center mb-4 mt-2 px-2 text-white text-decoration-none" style="z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+        <div class="p-2 rounded-circle shadow-sm me-3 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+            <img src="/images/namcya_logo.png" alt="Logo" style="height: 25px;" />
+        </div>
+        <span class="fs-5 fw-bold" style="letter-spacing: -0.5px;">Admin Portal</span>
+    </a>
+    
+    <ul class="nav nav-pills flex-column mb-auto gap-2" style="z-index: 1;">
+        @if (AuthService.CurrentOrganizer == null)
+        {
+            <li class="nav-item">
+                <NavLink class="nav-link glass-nav-link" href="" Match="NavLinkMatch.All">
+                    <i class="bi bi-box-arrow-in-right me-2"></i> Login
+                </NavLink>
+            </li>
+        }
+        else
+        {
+            <li class="nav-item">
+                <NavLink class="nav-link glass-nav-link" href="home">
+                    <i class="bi bi-house-door me-2"></i> Home Dashboard
+                </NavLink>
+            </li>
+        }
+
+        <li class="nav-item">
+            <NavLink class="nav-link glass-nav-link" href="judge">
+                <i class="bi bi-person-badge-fill me-2"></i> Judge Dashboard
+            </NavLink>
+        </li>
+
+        <li class="nav-item">
+            <NavLink class="nav-link glass-nav-link" href="scoreboard">
+                <i class="bi bi-display me-2"></i> Score Dashboard
+            </NavLink>
+        </li>
+
+        <li class="nav-item">
+            <NavLink class="nav-link glass-nav-link" href="leaderboard">
+                <i class="bi bi-globe me-2"></i> Public Leaderboard
+            </NavLink>
+        </li>
+
+        @if (AuthService.CurrentOrganizer != null)
+        {
+            <li class="nav-item mt-3 mb-1 px-3">
+                <small class="text-uppercase text-white-50 fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Management</small>
+            </li>
+            <li class="nav-item">
+                <NavLink class="nav-link glass-nav-link" href="admin-panel">
+                    <i class="bi bi-gear-fill me-2"></i> Admin Panel
+                </NavLink>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    private bool isMobileMenuOpen = false;
+
+    private void ToggleMobileMenu()
+    {
+        isMobileMenuOpen = !isMobileMenuOpen;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.InitializeSessionAsync();
+        NavManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        isMobileMenuOpen = false; // Auto-close menu on mobile when a link is clicked
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavManager.LocationChanged -= OnLocationChanged;
+    }
+}

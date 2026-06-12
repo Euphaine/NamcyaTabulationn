@@ -1,0 +1,366 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<style>
+    /* Force transparency so the WebGL shader can be seen entirely */
+    .main-layout-container {
+        background: transparent !important;
+        background-image: none !important;
+    }
+    /* Enhance standard HTML dropdown options to match the dark glass theme */
+    select.glass-input option {
+        background-color: #0f172a !important; /* Deep Navy */
+        color: #ffffff !important;
+        padding: 12px;
+    }
+
+    /* --- Clear Glass Overrides for legacy app.css classes --- */
+    .liquid-btn {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: #fff !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+    }
+    .liquid-btn:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+    }
+    .icon-glass {
+        background: transparent !important;
+        background-image: none !important;
+        border: 1px solid rgba(255, 255, 255, 0.02) !important;
+        box-shadow: none !important;
+    }
+
+    /* --- Override legacy app.css glass-panel borders/shadows --- */
+    .glass-panel {
+        background: transparent !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
+    }
+    .glass-input {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: #fff !important;
+    }
+    .glass-input:focus {
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05) !important;
+        border-color: rgba(255, 255, 255, 0.2) !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* --- Glass Switch Toggle Visibility --- */
+    .form-check-input.glass-input:checked {
+        background-color: #00AEEF !important; /* Vibrant Cyan */
+        border-color: #00AEEF !important;
+        box-shadow: 0 0 15px rgba(0, 174, 239, 0.6) !important;
+    }
+
+    /* --- Force Refraction on ALL Glass Elements Globally --- */
+    .glass-panel, .liquid-btn, .glass-card, .icon-glass {
+        position: relative;
+        z-index: 1;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .glass-panel.hover-zoom:hover, .glass-card:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 
+            0 25px 45px rgba(0, 0, 0, 0.3) !important;
+        z-index: 10;
+    }
+    .glass-panel::before, .liquid-btn::before, .glass-card::before, .icon-glass::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        backdrop-filter: blur(12px) saturate(150%);
+        -webkit-backdrop-filter: blur(12px) saturate(150%);
+        filter: url(#liquid-refraction);
+        background: rgba(255, 255, 255, 0.02);
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    .dynamic-island {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: 
+            0 15px 35px rgba(0, 0, 0, 0.15) !important;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: dynamicIslandFloat 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        position: relative;
+        overflow: hidden;
+    }
+    .dynamic-island:hover {
+        transform: scale(1.05) translateY(-2px);
+        box-shadow: 
+            0 20px 45px rgba(0, 0, 0, 0.2) !important;
+    }
+    .liquid-backdrop {
+        backdrop-filter: blur(16px) saturate(200%) contrast(1.1);
+        -webkit-backdrop-filter: blur(16px) saturate(200%) contrast(1.1);
+        /* Genuine SVG Refraction Distortion */
+        filter: url(#liquid-refraction);
+        border-radius: inherit;
+    }
+    /* Animated Glossy Glare */
+    .dynamic-island::after {
+        content: '';
+        position: absolute;
+        top: 0; left: -150%;
+        width: 100%; height: 100%;
+        background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%);
+        transform: skewX(-30deg);
+        animation: glassShine 6s infinite;
+        pointer-events: none;
+        z-index: 2;
+    }
+    @@keyframes glassShine {
+        0% { left: -150%; }
+        20% { left: 150%; }
+        100% { left: 150%; }
+    }
+    @@keyframes dynamicIslandFloat {
+        0% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+        100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    /* --- 3D Liquid Glass Tables with Refraction --- */
+    .glass-table {
+        border-collapse: separate !important;
+        border-spacing: 0 8px !important;
+        background: transparent !important;
+    }
+    .glass-table thead th {
+        background: rgba(0, 0, 0, 0.2) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: none !important;
+        color: #fff !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.85rem;
+        padding: 1rem;
+    }
+    .glass-table thead th:first-child { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
+    .glass-table thead th:last-child { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
+    
+    .glass-table tbody tr {
+        background: rgba(255, 255, 255, 0.02) !important;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+    }
+    .glass-table tbody tr:hover {
+        transform: scale(1.02);
+        background: rgba(255, 255, 255, 0.05) !important;
+        box-shadow: 
+            0 15px 35px rgba(0, 0, 0, 0.2) !important;
+        position: relative;
+        z-index: 10;
+    }
+    .glass-table td { 
+        border: none !important; 
+        background: transparent !important; 
+        padding: 1rem !important; 
+        vertical-align: middle; 
+        position: relative;
+        z-index: 1;
+    }
+    /* Apply refraction safely to table cells without distorting text */
+    .glass-table tbody td::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        backdrop-filter: blur(10px) saturate(150%);
+        -webkit-backdrop-filter: blur(10px) saturate(150%);
+        z-index: -1;
+        pointer-events: none;
+    }
+    .glass-table tbody td:first-child { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
+    .glass-table tbody td:first-child::before { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
+    .glass-table tbody td:last-child { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
+    .glass-table tbody td:last-child::before { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
+
+    /* --- Sidebar & Navigation Glass Styles --- */
+    .glass-sidebar-3d {
+        background: transparent !important;
+        border: 1px solid rgba(255, 255, 255, 0.02) !important;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
+        margin: 1.5rem 0 1.5rem 1.5rem;
+        border-radius: 1.5rem;
+        position: relative;
+        z-index: 10;
+        animation: sidebarSlideIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    .sidebar-backdrop {
+        backdrop-filter: blur(20px) saturate(150%) contrast(1.1);
+        -webkit-backdrop-filter: blur(20px) saturate(150%) contrast(1.1);
+        filter: url(#liquid-refraction);
+        border-radius: inherit;
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+    }
+    .glass-nav-link {
+        color: #f8f9fa !important;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        font-weight: 600;
+        border-radius: 1rem !important;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        padding: 0.75rem 1.25rem;
+    }
+    .glass-nav-link:hover {
+        background: rgba(255, 255, 255, 0.4);
+        transform: translateX(6px);
+    }
+    .glass-nav-link.active {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: #008DD0 !important;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important;
+        transform: scale(1.03) translateX(4px);
+    }
+    @@keyframes sidebarSlideIn {
+        0% { transform: translateX(-50px); opacity: 0; }
+        100% { transform: translateX(0); opacity: 1; }
+    }
+
+    /* --- Judge Dashboard Specific Glass Styles --- */
+    .contestant-list-item {
+        background: transparent !important;
+        color: #f8f9fa !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        padding: 1rem 1.5rem;
+        transition: all 0.2s ease-in-out;
+        position: relative;
+        z-index: 1;
+    }
+    .contestant-list-item::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        z-index: -1;
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+    }
+    .contestant-list-item:hover { background: rgba(255, 255, 255, 0.1) !important; transform: translateX(5px); }
+    .contestant-list-item:hover::before { opacity: 1; }
+    .contestant-list-item.active { background: rgba(255, 255, 255, 0.1) !important; border-left: 4px solid #00AEEF; transform: translateX(0); box-shadow: inset 5px 0 15px rgba(0,0,0,0.2); }
+    .contestant-list-item.active::before { opacity: 1; }
+    .contestant-list-item .bi-check-circle-fill { opacity: 0.8; }
+
+    /* --- Responsive Dynamic Display (Mobile/Tablet) --- */
+    @@media (max-width: 767.98px) {
+        .glass-sidebar-3d {
+            position: fixed !important;
+            top: 0;
+            left: -320px;
+            height: calc(100vh - 3rem);
+            transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1050 !important;
+        }
+        .glass-sidebar-3d.mobile-open {
+            left: 0;
+        }
+        .dynamic-island {
+            width: 90% !important;
+            padding: 0.5rem 1.5rem !important;
+            min-width: auto !important;
+        }
+        .main-content {
+            width: 100% !important;
+            max-width: 100vw !important;
+            overflow-x: hidden;
+        }
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 1040;
+            transition: opacity 0.3s;
+            opacity: 0;
+        }
+        .mobile-overlay.mobile-open {
+            display: block;
+            opacity: 1;
+        }
+    }
+    @@media (min-width: 768px) {
+        .mobile-overlay { display: none !important; }
+    }
+</style>
+
+<div class="d-flex main-layout-container min-vh-100">
+    <!-- The WebGL Shader Background Container -->
+    <div id="shader-bg-container" class="position-fixed w-100 h-100 top-0 start-0" style="z-index: -2;"></div>
+
+    <!-- Sidebar -->
+    <NavMenu />
+
+    <!-- Main Content Area -->
+    <main class="flex-grow-1 d-flex flex-column main-content">
+        <div class="w-100 d-flex justify-content-center d-print-none">
+            <nav class="navbar rounded-pill mt-4 mb-4 px-5 py-2 dynamic-island" style="min-width: 250px; z-index: 1000;">
+                <div class="position-absolute w-100 h-100 top-0 start-0 liquid-backdrop" style="z-index: -1;"></div>
+                <a class="navbar-brand fw-bold mb-0 text-white m-0 d-flex align-items-center" href="/" style="letter-spacing: 0.5px; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                    <img src="/images/namcya_logo.png" alt="Logo" style="height: 28px;" class="me-2" />
+                    NAMCYA Tabulation
+                </a>
+            </nav>
+        </div>
+
+        <article class="px-4 pb-5 page-transition" @key="NavManager.Uri">
+            @Body
+        </article>
+    </main>
+</div>
+
+<!-- Genuine SVG Refraction Filter -->
+<svg style="position: absolute; width: 0; height: 0; pointer-events: none;" aria-hidden="true">
+    <defs>
+        <filter id="liquid-refraction" color-interpolation-filters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="1" seed="1" result="turbulence" />
+            <feGaussianBlur in="turbulence" stdDeviation="2" result="blurredNoise" />
+            <feDisplacementMap in="SourceGraphic" in2="blurredNoise" scale="12" xChannelSelector="R" yChannelSelector="B" result="displaced" />
+        </filter>
+    </defs>
+</svg>
+
+<div id="blazor-error-ui" data-nosnippet="true">
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        NavManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initShaderBackground", "shader-bg-container");
+        }
+    }
+
+    public void Dispose()
+    {
+        NavManager.LocationChanged -= OnLocationChanged;
+    }
+}

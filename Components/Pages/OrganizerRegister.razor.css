@@ -1,0 +1,28 @@
+.login-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: url('/images/display_banner.png') no-repeat center center;
+    background-size: cover;
+    z-index: 9999;
+}
+
+.login-overlay {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(5, 39, 103, 0.75); /* Dark NAMCYA blue overlay */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.login-card {
+    max-width: 450px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+}

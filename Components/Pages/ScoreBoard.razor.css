@@ -1,0 +1,28 @@
+.col-rank { width: 15%; }
+.col-contestant { width: 45%; text-align: left; }
+.col-score { width: 20%; }
+.toast-wrapper { z-index: 1055; }
+
+/* Smooth Card Fade-in */
+.fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Modern Table Hover Scaling */
+.custom-table tbody tr {
+    transition: all 0.2s ease-in-out;
+}
+
+.custom-table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.04) !important;
+    transform: scale(1.005);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    z-index: 1;
+    position: relative;
+    border-radius: 8px;
+}
