@@ -19,6 +19,7 @@ namespace NamcyaTabulation.Services
 
     public class JudgeScoreBreakdown
     {
+        public int JudgeId { get; set; }
         public string JudgeName { get; set; } = string.Empty;
         public int ContestantId { get; set; }
         public string ContestantName { get; set; } = string.Empty;
@@ -121,7 +122,8 @@ namespace NamcyaTabulation.Services
             foreach (var group in contestantGroups)
             {
                 decimal rankSum = group.Sum(r => r.JudgeRank);
-                decimal averageScore = Math.Round(group.Average(r => r.TotalScore), decimalPrecision);
+                // Force standard mathematical rounding (Half-Up) instead of C#'s default Banker's Rounding
+                decimal averageScore = Math.Round(group.Average(r => r.TotalScore), decimalPrecision, MidpointRounding.AwayFromZero);
 
                 results.Add(new TabulationResult
                 {
@@ -177,12 +179,12 @@ namespace NamcyaTabulation.Services
                 foreach (var contestant in contestants)
                 {
                     var totalScore = scores.Where(s => s.JudgeId == judge.Id && s.ContestantId == contestant.Id).Sum(s => s.Points);
-                    contestantJudgeScores.Add(new JudgeScoreBreakdown { ContestantId = contestant.Id, ContestantName = contestant.Name, JudgeName = judge.Name, TotalScore = totalScore });
+                    contestantJudgeScores.Add(new JudgeScoreBreakdown { JudgeId = judge.Id, ContestantId = contestant.Id, ContestantName = contestant.Name, JudgeName = judge.Name, TotalScore = totalScore });
                 }
             }
 
             var breakdown = new List<JudgeScoreBreakdown>();
-            var scoresByJudge = contestantJudgeScores.GroupBy(s => s.JudgeName);
+            var scoresByJudge = contestantJudgeScores.GroupBy(s => new { s.JudgeId, s.JudgeName });
             
             foreach (var judgeGroup in scoresByJudge)
             {

@@ -13,16 +13,16 @@ namespace NamcyaTabulation.Services
     public class OrganizerAuthService
     {
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ProtectedSessionStorage _session;
+        private readonly ProtectedLocalStorage _storage;
         private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
         private bool _isInitialized = false;
 
         public Organizer? CurrentOrganizer { get; private set; }
 
-        public OrganizerAuthService(IServiceScopeFactory scopeFactory, ProtectedSessionStorage session)
+        public OrganizerAuthService(IServiceScopeFactory scopeFactory, ProtectedLocalStorage storage)
         {
             _scopeFactory = scopeFactory;
-            _session = session;
+            _storage = storage;
         }
 
         public async Task InitializeSessionAsync()
@@ -34,7 +34,7 @@ namespace NamcyaTabulation.Services
             {
                 if (_isInitialized) return;
                 
-                var result = await _session.GetAsync<int>("OrganizerId");
+                var result = await _storage.GetAsync<int>("OrganizerId");
                 if (result.Success && result.Value > 0)
                 {
                     using var scope = _scopeFactory.CreateScope();
@@ -60,7 +60,7 @@ namespace NamcyaTabulation.Services
                 CurrentOrganizer = organizer;
                 try
                 {
-                    await _session.SetAsync("OrganizerId", organizer.Id);
+                    await _storage.SetAsync("OrganizerId", organizer.Id);
                 }
                 catch { }
                 return true;
@@ -94,7 +94,7 @@ namespace NamcyaTabulation.Services
             CurrentOrganizer = null;
             try
             {
-                await _session.DeleteAsync("OrganizerId");
+                await _storage.DeleteAsync("OrganizerId");
             }
             catch { }
         }

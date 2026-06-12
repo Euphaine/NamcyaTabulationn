@@ -176,7 +176,17 @@
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center mt-4 pt-4 border-top border-white border-opacity-10">
                                             <span class="text-white-50 small">Auto-calculated upon submission.</span>
-                                            <button type="submit" class="btn liquid-btn fw-bold text-white" disabled="@IsScoringLocked">Submit Score</button>
+                                            <button type="submit" class="btn liquid-btn fw-bold text-white" disabled="@(IsScoringLocked || isSubmitting)">
+                                                @if (isSubmitting)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    <span>Saving...</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>Submit Score</span>
+                                                }
+                                            </button>
                                         </div>
                                     </form>
                                 </div>
@@ -261,6 +271,7 @@
     public bool LoginError { get; set; } = false;
     public bool SaveSuccess { get; set; } = false;
     public bool IsScoringLocked { get; set; } = false;
+    private bool isSubmitting = false;
 
     public Judge? CurrentJudge { get; set; }
     public SubEvent? SelectedSubEvent { get; set; }
@@ -346,8 +357,8 @@
             SelectedSubEvent = SubEvents.FirstOrDefault(s => s.Id == subEventId);
             if (SelectedSubEvent != null)
             {
-                Categories = await DbContext.Categories.Where(c => c.SubEventId == subEventId).ToListAsync();
-                Criteria = await DbContext.Criteria.Where(c => c.SubEventId == subEventId).ToListAsync();
+                Categories = await DbContext.Categories.AsNoTracking().Where(c => c.SubEventId == subEventId).ToListAsync();
+                Criteria = await DbContext.Criteria.AsNoTracking().Where(c => c.SubEventId == subEventId).ToListAsync();
             }
         }
         else
@@ -367,7 +378,7 @@
             SelectedCategory = Categories.FirstOrDefault(c => c.Id == categoryId);
             if (SelectedCategory != null)
             {
-                Contestants = await DbContext.Contestants.Where(c => c.CategoryId == categoryId).ToListAsync();
+                Contestants = await DbContext.Contestants.AsNoTracking().Where(c => c.CategoryId == categoryId).ToListAsync();
                 await LoadRecapList();
             }
         }
@@ -415,26 +426,42 @@
 
     public async Task SaveScores()
     {
-        if (SelectedContestant == null || CurrentJudge == null || IsScoringLocked) return;
+        if (SelectedContestant == null || CurrentJudge == null || IsScoringLocked || isSubmitting) return;
 
-        foreach (var score in CurrentScores)
+        isSubmitting = true;
+        try
         {
-            if (score.Id == 0) {
-                DbContext.ScoreSheets.Add(score);
-            }
-            else
+            foreach (var score in CurrentScores)
             {
-                DbContext.ScoreSheets.Update(score);
+                // Hard backend validation to prevent frontend manipulation or glitches
+                var crit = Criteria.FirstOrDefault(c => c.Id == score.CriterionId);
+                if (crit != null && score.Points > crit.MaxScore) score.Points = crit.MaxScore;
+                if (score.Points < 0) score.Points = 0;
+                
+                // Force exact 2-decimal precision to prevent Database truncation errors
+                score.Points = Math.Round(score.Points, 2, MidpointRounding.AwayFromZero);
+
+                if (score.Id == 0) {
+                    DbContext.ScoreSheets.Add(score);
+                }
+                else
+                {
+                    DbContext.ScoreSheets.Update(score);
+                }
             }
+
+            await DbContext.SaveChangesAsync();
+            
+            if (SelectedCategory != null) ScoreBroadcaster.BroadcastScoreUpdate(SelectedCategory.Id);
+
+            SaveSuccess = true;
+            SelectedContestant = null; 
+            await LoadRecapList();
         }
-
-        await DbContext.SaveChangesAsync();
-        
-        if (SelectedCategory != null) ScoreBroadcaster.BroadcastScoreUpdate(SelectedCategory.Id);
-
-        SaveSuccess = true;
-        SelectedContestant = null; 
-        await LoadRecapList();
+        finally
+        {
+            isSubmitting = false;
+        }
     }
 
     private async Task LoadRecapList()
@@ -442,6 +469,7 @@
         if (CurrentJudge == null || SelectedCategory == null) return;
 
         var allScores = await DbContext.ScoreSheets
+            .AsNoTracking()
             .Where(s => s.JudgeId == CurrentJudge.Id && s.Contestant!.CategoryId == SelectedCategory.Id)
             .ToListAsync();
 
