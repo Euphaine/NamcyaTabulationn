@@ -12,98 +12,148 @@
 <PageTitle>Manage Contestants</PageTitle>
 
 <div class="container mt-4 fade-in">
-    <div class="text-center mb-5">
-        <h2 class="fw-bold" style="letter-spacing: -0.5px;">Manage Contestants</h2>
-        <p class="text-muted">Select an event to add or remove participants.</p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <h2 class="fw-bold text-white mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Manage Contestants</h2>
+            @if (SelectedCategory != null)
+            {
+                <span class="badge bg-white bg-opacity-25 border border-light border-opacity-10 text-white px-3 py-2 rounded-pill shadow-sm fs-6">@Contestants.Count Total</span>
+            }
+        </div>
+        <a href="/admin-panel" class="btn btn-outline-light fw-bold shadow-sm d-none d-sm-inline-block"><i class="bi bi-arrow-left me-1"></i> Back</a>
     </div>
 
     <!-- Cascading Selection Card -->
-    <div class="glass-card mb-5 p-4">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label text-muted small fw-bold text-uppercase ms-2">Event</label>
-                    <select class="form-select minimal-input" @onchange="OnEventChanged">
-                        <option value="0">-- Select Event --</option>
-                        @foreach (var ev in Events)
-                        {
-                            <option value="@ev.Id">@ev.Name</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label text-muted small fw-bold text-uppercase ms-2">Sub-Event</label>
-                    <select class="form-select minimal-input" @onchange="OnSubEventChanged" disabled="@(SelectedEvent == null)">
-                        <option value="0">-- Select Sub-Event --</option>
-                        @foreach (var sub in SubEvents)
-                        {
-                            <option value="@sub.Id">@sub.Name</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label text-muted small fw-bold text-uppercase ms-2">Category</label>
-                    <select class="form-select minimal-input" @onchange="OnCategoryChanged" disabled="@(SelectedSubEvent == null)">
-                        <option value="0">-- Select Category --</option>
+    <div class="glass-panel p-4 mb-4 rounded-4 shadow-sm hover-zoom">
+        <div class="row g-4 mb-3">
+            <div class="col-md-6">
+                <label class="form-label text-white-50 fs-6 fw-bold mb-2"><i class="bi bi-calendar-event me-2"></i>Main Event</label>
+                <select class="form-select glass-input fs-5 py-3 text-white fw-bold shadow-sm" @onchange="OnEventChanged">
+                    <option value="0">-- Select Event --</option>
+                    @foreach (var ev in Events)
+                    {
+                        <option value="@ev.Id">@ev.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-white-50 fs-6 fw-bold mb-2"><i class="bi bi-diagram-3 me-2"></i>Sub-Event</label>
+                <select class="form-select glass-input fs-5 py-3 text-white fw-bold shadow-sm" @onchange="OnSubEventChanged" disabled="@(SelectedEvent == null)">
+                    <option value="0">-- Select Sub-Event --</option>
+                    @foreach (var sub in SubEvents)
+                    {
+                        <option value="@sub.Id">@sub.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+        
+        @if (SelectedSubEvent != null)
+        {
+            if (Categories.Any())
+            {
+                <div class="mt-4 pt-4 border-top border-light border-opacity-10 fade-in">
+                    <label class="form-label text-white-50 fs-6 fw-bold mb-3"><i class="bi bi-tags-fill me-2"></i>Categories</label>
+                    <div class="d-flex flex-wrap gap-2">
                         @foreach (var cat in Categories)
                         {
-                            <option value="@cat.Id">@cat.Name</option>
+                            <button class="btn @(SelectedCategory?.Id == cat.Id ? "liquid-btn text-white shadow" : "glass-input text-white-50") fw-bold px-4 py-2" style="border-radius: 50rem !important;" 
+                                    @onclick="() => SelectCategory(cat)">
+                                @cat.Name
+                            </button>
                         }
-                    </select>
+                    </div>
                 </div>
-            </div>
+            }
+            else
+            {
+                <div class="mt-4 pt-4 border-top border-light border-opacity-10 fade-in">
+                    <div class="alert bg-black bg-opacity-25 text-white-50 border border-light border-opacity-10 rounded-4 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i> No categories found for this sub-event.
+                    </div>
+                </div>
+            }
+        }
     </div>
 
     @if (SelectedCategory != null)
     {
-        <div class="glass-card overflow-hidden">
-            <div class="bg-primary text-white p-4">
-                <h4 class="mb-0 fw-bold"><i class="bi bi-people-fill me-2"></i> @SelectedCategory.Name</h4>
-                <p class="mb-0 text-white-50 small mt-1">Add or remove contestants below</p>
+        <div class="glass-panel p-4 rounded-4 shadow-sm hover-zoom mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold text-white mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);"><i class="bi bi-people-fill me-2"></i> Contestant Roster</h4>
+                <button class="btn liquid-btn text-white fw-bold shadow-sm" @onclick="OpenAddModal">
+                    <i class="bi bi-person-plus-fill me-1"></i> Add Contestant
+                </button>
             </div>
-            <div class="p-4">
-                <form @onsubmit="SaveContestant" class="mb-4 d-flex gap-2">
-                    <input type="text" class="form-control minimal-input" placeholder="Type Contestant / Group Name..." @bind="newContestant.Name" list="existingContestants" required autocomplete="off" />
-                    <button type="submit" class="btn btn-primary minimal-btn px-4 shadow-sm">
-                        <i class="bi bi-plus-circle me-1"></i> Add
-                    </button>
-                </form>
-                
-                <datalist id="existingContestants">
-                    @foreach (var name in ExistingContestantNames)
-                    {
-                        <option value="@name"></option>
-                    }
-                </datalist>
-                
-                <div class="table-responsive">
-                    <table class="table table-hover table-borderless align-middle mb-0">
-                        <thead class="border-bottom">
-                            <tr>
-                                <th class="text-muted small fw-bold text-uppercase pb-3">Contestant Name</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (!Contestants.Any())
-                            {
-                                <tr>
-                                    <td colspan="2" class="text-muted text-center py-5 fs-5">No contestants registered for this category yet.</td>
-                                </tr>
-                            }
-                            @foreach (var contestant in Contestants)
-                            {
-                                <tr class="border-bottom">
-                                    <td class="fw-bold fs-5 py-3 text-dark">@contestant.Name</td>
-                                    <td class="text-end">
-                                        <button class="btn btn-light text-danger rounded-circle shadow-sm" style="width: 40px; height: 40px;" @onclick="() => DeleteContestant(contestant)" title="Remove Contestant">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+            
+            <hr class="border-light border-opacity-10 mt-0 mb-4" />
+            
+            @if (!Contestants.Any())
+            {
+                <div class="text-white-50 text-center p-5 bg-black bg-opacity-25 rounded-4 border border-light border-opacity-10 mt-2">
+                    <i class="bi bi-person-slash fs-1 d-block mb-3"></i>
+                    <h5 class="fw-bold">No Contestants Yet</h5>
+                    <p class="mb-0">Click the button above to register contestants to this category.</p>
                 </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var contestant in Contestants)
+                    {
+                        <div class="bg-white bg-opacity-10 border border-light border-opacity-10 rounded-4 p-3 d-flex justify-content-between align-items-center shadow-sm transition-all hover-zoom" style="backdrop-filter: blur(5px);">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-black bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center border border-white border-opacity-10 shadow-sm" style="width: 48px; height: 48px;">
+                                    <i class="bi bi-person-fill text-white fs-4"></i>
+                                </div>
+                                <strong class="text-white fs-5" style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">@contestant.Name</strong>
+                            </div>
+                            <button class="btn btn-sm text-danger bg-transparent border-0 p-2" @onclick="() => DeleteContestant(contestant)" title="Remove Contestant">
+                                <i class="bi bi-trash fs-4"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    
+    <!-- Add Contestant Modal -->
+    @if (showModal)
+    {
+        <div class="glass-modal-overlay" @onclick="CloseModal">
+            <div class="glass-modal p-4 p-md-5" @onclick="() => {}" @onclick:stopPropagation="true">
+                <h3 class="text-white fw-bold mb-4">Add Contestant to @SelectedCategory?.Name</h3>
+                <form @onsubmit="SaveContestant" @onsubmit:preventDefault="true">
+                    @if (AvailableExistingNames.Any())
+                    {
+                        <div class="mb-4">
+                            <label class="form-label text-white-50 fs-6 fw-bold mb-2"><i class="bi bi-search me-2"></i>Select Existing Contestant</label>
+                            <select class="form-select glass-input fs-5 text-white py-3 shadow-sm" @onchange="OnExistingContestantSelected">
+                                <option value="">-- Choose to auto-fill --</option>
+                                @foreach (var name in AvailableExistingNames)
+                                {
+                                    <option value="@name">@name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="d-flex align-items-center mb-4">
+                            <hr class="flex-grow-1 border-light border-opacity-25" />
+                            <span class="mx-3 text-white-50 fw-bold small">OR ADD NEW</span>
+                            <hr class="flex-grow-1 border-light border-opacity-25" />
+                        </div>
+                    }
+
+                    <div class="mb-5">
+                        <label class="form-label text-white-50 fs-6 fw-bold mb-2"><i class="bi bi-person-badge me-2"></i>Contestant Name</label>
+                        <input type="text" class="form-control glass-input fs-5 text-white py-3 shadow-sm" placeholder="Type name..." @bind="newContestant.Name" required autocomplete="off" autofocus />
+                    </div>
+                    
+                    <div class="d-flex justify-content-end gap-3 pt-4 border-top border-light border-opacity-10 mt-4">
+                        <button type="button" class="btn btn-outline-light px-4 fw-bold" @onclick="CloseModal">Cancel</button>
+                        <button type="submit" class="btn liquid-btn px-5 fw-bold text-white">Save Contestant</button>
+                    </div>
+                </form>
             </div>
         </div>
     }
@@ -123,6 +173,11 @@
     private Category? SelectedCategory;
     
     private Contestant newContestant = new();
+
+    private bool showModal = false;
+
+    // Filters out contestants who are already in the currently selected category
+    private IEnumerable<string> AvailableExistingNames => ExistingContestantNames.Where(n => !Contestants.Any(c => c.Name.Equals(n, StringComparison.OrdinalIgnoreCase)));
 
     protected override async Task OnInitializedAsync()
     {
@@ -164,14 +219,10 @@
         else { SelectedSubEvent = null; }
     }
 
-    private async Task OnCategoryChanged(ChangeEventArgs e)
+    private async Task SelectCategory(Category cat)
     {
-        if (int.TryParse(e.Value?.ToString(), out int catId) && catId > 0)
-        {
-            SelectedCategory = Categories.FirstOrDefault(c => c.Id == catId);
-            await LoadContestants();
-        }
-        else { SelectedCategory = null; Contestants.Clear(); }
+        SelectedCategory = cat;
+        await LoadContestants();
     }
 
     private async Task LoadContestants()
@@ -184,12 +235,35 @@
         ExistingContestantNames = await DbContext.Contestants.Select(c => c.Name).Distinct().OrderBy(n => n).ToListAsync();
     }
 
+    private void OpenAddModal()
+    {
+        newContestant = new Contestant();
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private void OnExistingContestantSelected(ChangeEventArgs e)
+    {
+        var selectedName = e.Value?.ToString();
+        if (selectedName != null)
+        {
+            newContestant.Name = selectedName;
+        }
+    }
+
     private async Task SaveContestant()
     {
         if (SelectedCategory == null || string.IsNullOrWhiteSpace(newContestant.Name)) return;
         newContestant.CategoryId = SelectedCategory.Id;
         DbContext.Contestants.Add(newContestant); await DbContext.SaveChangesAsync();
-        newContestant = new Contestant(); await LoadContestants(); await LoadExistingNames();
+        newContestant = new Contestant(); 
+        showModal = false;
+        await LoadContestants(); 
+        await LoadExistingNames();
     }
 
     private async Task DeleteContestant(Contestant contestant)

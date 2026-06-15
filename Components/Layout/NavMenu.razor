@@ -3,80 +3,189 @@
 @inject OrganizerAuthService AuthService
 @inject NavigationManager NavManager
 
-<!-- Floating Mobile Toggle Button -->
-<button class="btn liquid-btn text-white d-md-none position-fixed shadow-lg d-print-none" style="bottom: 20px; right: 20px; z-index: 1060; border-radius: 50%; width: 60px; height: 60px; padding: 0;" @onclick="ToggleMobileMenu">
-    <i class="bi @(isMobileMenuOpen ? "bi-x-lg" : "bi-list")" style="font-size: 1.8rem;"></i>
-</button>
-
-<!-- Mobile Dark Overlay -->
-<div class="mobile-overlay d-md-none d-print-none @(isMobileMenuOpen ? "mobile-open" : "")" @onclick="ToggleMobileMenu"></div>
-
-<div class="d-flex flex-column flex-shrink-0 p-3 glass-sidebar-3d sidebar-nav d-print-none @(isMobileMenuOpen ? "mobile-open" : "")" style="width: 280px;">
-    <div class="sidebar-backdrop"></div>
-    
-    <a href="/" class="d-flex align-items-center mb-4 mt-2 px-2 text-white text-decoration-none" style="z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-        <div class="p-2 rounded-circle shadow-sm me-3 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
-            <img src="/images/namcya_logo.png" alt="Logo" style="height: 25px;" />
+<div class="w-100 d-flex justify-content-center d-print-none sticky-top mt-3 mb-3 px-3" style="z-index: 1050;">
+    <nav class="navbar dynamic-island-nav @(isExpanded ? "expanded shadow-lg" : "shadow")" @onclick="ToggleNav">
+        <div class="position-absolute w-100 h-100 top-0 start-0 liquid-backdrop" style="z-index: -1; border-radius: inherit;"></div>
+        
+        <div class="island-header w-100 d-flex align-items-center justify-content-between" style="z-index: 1;">
+            <!-- Invisible spacer on the left to perfectly balance the right icon -->
+            <div style="width: 24px;"></div>
+            
+            <a class="navbar-brand fw-bold mb-0 text-white m-0 d-flex align-items-center justify-content-center" href="/" @onclick:stopPropagation="true">
+                <img src="/images/namcya_logo.png" alt="Logo" class="island-logo" />
+                <span class="island-text @(isExpanded ? "show" : "")">NAMCYA Tabulation</span>
+            </a>
+            
+            <div class="text-white-50 d-flex align-items-center justify-content-center toggle-icon @(isExpanded ? "rotate" : "")" style="width: 24px;">
+                <i class="bi bi-chevron-down fs-5"></i>
+            </div>
         </div>
-        <span class="fs-5 fw-bold" style="letter-spacing: -0.5px;">Admin Portal</span>
-    </a>
-    
-    <ul class="nav nav-pills flex-column mb-auto gap-2" style="z-index: 1;">
-        @if (AuthService.CurrentOrganizer == null)
-        {
-            <li class="nav-item">
-                <NavLink class="nav-link glass-nav-link" href="" Match="NavLinkMatch.All">
-                    <i class="bi bi-box-arrow-in-right me-2"></i> Login
+
+        <div class="nav-links-wrapper @(isExpanded ? "show" : "")" @onclick:stopPropagation="true">
+            <div class="d-flex flex-wrap justify-content-center gap-2 mt-2 pt-2 border-top border-light border-opacity-10 w-100">
+                @if (AuthService.CurrentOrganizer == null)
+                {
+                    <NavLink class="nav-pill-link" href="" Match="NavLinkMatch.All">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Login
+                    </NavLink>
+                }
+                else
+                {
+                    <NavLink class="nav-pill-link" href="home">
+                        <i class="bi bi-house-door me-1"></i> Home
+                    </NavLink>
+                }
+
+                <NavLink class="nav-pill-link" href="judge">
+                    <i class="bi bi-person-badge-fill me-1"></i> Judge
                 </NavLink>
-            </li>
-        }
-        else
-        {
-            <li class="nav-item">
-                <NavLink class="nav-link glass-nav-link" href="home">
-                    <i class="bi bi-house-door me-2"></i> Home Dashboard
+                <NavLink class="nav-pill-link" href="scoreboard">
+                    <i class="bi bi-display me-1"></i> Scoreboard
                 </NavLink>
-            </li>
-        }
-
-        <li class="nav-item">
-            <NavLink class="nav-link glass-nav-link" href="judge">
-                <i class="bi bi-person-badge-fill me-2"></i> Judge Dashboard
-            </NavLink>
-        </li>
-
-        <li class="nav-item">
-            <NavLink class="nav-link glass-nav-link" href="scoreboard">
-                <i class="bi bi-display me-2"></i> Score Dashboard
-            </NavLink>
-        </li>
-
-        <li class="nav-item">
-            <NavLink class="nav-link glass-nav-link" href="leaderboard">
-                <i class="bi bi-globe me-2"></i> Public Leaderboard
-            </NavLink>
-        </li>
-
-        @if (AuthService.CurrentOrganizer != null)
-        {
-            <li class="nav-item mt-3 mb-1 px-3">
-                <small class="text-uppercase text-white-50 fw-bold" style="font-size: 0.75rem; letter-spacing: 1px;">Management</small>
-            </li>
-            <li class="nav-item">
-                <NavLink class="nav-link glass-nav-link" href="admin-panel">
-                    <i class="bi bi-gear-fill me-2"></i> Admin Panel
+                <NavLink class="nav-pill-link" href="leaderboard">
+                    <i class="bi bi-globe me-1"></i> Leaderboard
                 </NavLink>
-            </li>
-        }
-    </ul>
+
+                @if (AuthService.CurrentOrganizer != null)
+                {
+                    <div class="vr bg-white opacity-25 d-none d-md-block mx-1"></div>
+                    <NavLink class="nav-pill-link text-warning" href="admin-panel">
+                        <i class="bi bi-gear-fill me-1"></i> Admin Hub
+                    </NavLink>
+                }
+            </div>
+        </div>
+    </nav>
 </div>
 
-@code {
-    private bool isMobileMenuOpen = false;
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .dynamic-island-nav {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        cursor: pointer;
+        
+        /* --- The True Capsule Shape --- */
+        width: 180px; /* Slightly wider to comfortably hold the logo */
+        max-height: 48px;
+        border-radius: 50px !important;
+        padding: 0 1rem; /* Slightly less padding to give the logo more room */
+        
+        position: relative;
+        overflow: hidden; /* Essential to cleanly hide dropdown items when collapsed */
+        animation: dynamicIslandTop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .dynamic-island-nav.expanded {
+        width: 100%;
+        max-width: 700px;
+        max-height: 500px; /* Expands to fit all links */
+        border-radius: 28px !important;
+        padding-bottom: 1.5rem !important;
+        cursor: default;
+    }
+    .island-header {
+        height: 48px;
+        min-height: 48px;
+        flex-shrink: 0;
+    }
+    .island-logo {
+        height: 28px;
+        max-width: 100px; /* Stops the rectangular logo from breaking the capsule bounds */
+        object-fit: contain; /* Scales the image perfectly without distortion */
+        transition: all 0.4s ease;
+    }
+    .island-text {
+        font-size: 1.05rem;
+        font-weight: 600;
+        white-space: nowrap;
+        opacity: 0;
+        max-width: 0;
+        overflow: hidden;
+        transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .island-text.show {
+        opacity: 1;
+        max-width: 200px;
+        margin-left: 0.6rem;
+    }
+    .dynamic-island-nav::after {
+        content: '';
+        position: absolute;
+        top: 0; left: -150%;
+        width: 100%; height: 100%;
+        background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%);
+        transform: skewX(-30deg);
+        animation: glassShine 6s infinite;
+        pointer-events: none;
+        z-index: 2;
+    }
+    .dynamic-island-nav:hover:not(.expanded) {
+        transform: scale(1.05) translateY(-2px);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2) !important;
+    }
+    .nav-pill-link {
+        color: rgba(255, 255, 255, 0.7) !important;
+        padding: 0.4rem 1rem;
+        border-radius: 50rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+    }
+    .nav-pill-link:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff !important;
+        transform: translateY(-2px);
+    }
+    .nav-pill-link.active {
+        background: rgba(255, 255, 255, 0.15);
+        color: #00AEEF !important;
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    /* Smooth Expansion Transitions */
+    .nav-links-wrapper {
+        opacity: 0;
+        width: 100%;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+    .nav-links-wrapper.show {
+        opacity: 1;
+        transition-delay: 0.2s; /* Waits for the capsule to expand before showing links */
+        pointer-events: auto;
+    }
+    .toggle-icon {
+        transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .toggle-icon.rotate {
+        transform: rotate(180deg);
+    }
+    
+    @@keyframes dynamicIslandTop {
+        0% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+        100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    @@keyframes glassShine {
+        0% { left: -150%; }
+        20% { left: 150%; }
+        100% { left: 150%; }
+    }
+</style>
 
-    private void ToggleMobileMenu()
+@code {
+    private bool isExpanded = false;
+
+    private void ToggleNav()
     {
-        isMobileMenuOpen = !isMobileMenuOpen;
+        isExpanded = !isExpanded;
     }
 
     protected override async Task OnInitializedAsync()
@@ -87,7 +196,7 @@
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        isMobileMenuOpen = false; // Auto-close menu on mobile when a link is clicked
+        isExpanded = false; // Auto-close when navigating
         StateHasChanged();
     }
 

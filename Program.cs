@@ -34,8 +34,6 @@ using (var scope = app.Services.CreateScope())
         context.Organizers.Add(new NamcyaTabulation.Models.Organizer { Username = "admin", PasswordHash = passwordHash });
         context.SaveChanges();
     }
-
-    DbSeeder.Seed(context);
 }
 
 // Configure the HTTP request pipeline.

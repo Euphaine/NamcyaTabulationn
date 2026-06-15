@@ -11,139 +11,138 @@
 
 @if (AuthService.CurrentOrganizer != null)
 {
-    <div class="container-fluid mt-4 mb-5">
+    <div class="container-fluid mt-4 mb-5 fade-in">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="fw-bold">Manage Events & Sub-Events</h2>
-            <a href="/admin-panel" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to Hub</a>
-        </div>
-
-        <div class="row g-4">
-            <!-- Data Lists Column -->
-            <div class="col-md-8">
-                <!-- Main Events -->
-                <div class="card shadow-sm border-0 mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Main Events</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-3">ID</th>
-                                    <th>Event Name</th>
-                                    <th class="text-end pe-3">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (!Events.Any())
-                                {
-                                    <tr><td colspan="3" class="text-center text-muted py-4">No events found.</td></tr>
-                                }
-                                @foreach (var ev in Events)
-                                {
-                                    <tr>
-                                        <td class="ps-3">@ev.Id</td>
-                                        <td class="fw-bold text-primary">@ev.Name</td>
-                                        <td class="text-end pe-3">
-                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditEvent(ev)">Edit</button>
-                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteEvent(ev)">Delete</button>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Sub-Events -->
-                <div class="card shadow-sm border-0">
-                    <div class="card-header text-white header-dark">
-                        <h5 class="mb-0">Sub-Events</h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-3">ID</th>
-                                    <th>Sub-Event Name</th>
-                                    <th>Parent Event</th>
-                                    <th class="text-end pe-3">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (!SubEvents.Any())
-                                {
-                                    <tr><td colspan="4" class="text-center text-muted py-4">No sub-events found.</td></tr>
-                                }
-                                @foreach (var sub in SubEvents)
-                                {
-                                    <tr>
-                                        <td class="ps-3">@sub.Id</td>
-                                        <td class="fw-medium">@sub.Name</td>
-                                        <td>@(sub.Event?.Name ?? "Unknown")</td>
-                                        <td class="text-end pe-3">
-                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditSubEvent(sub)">Edit</button>
-                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteSubEvent(sub)">Delete</button>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Forms Column -->
-            <div class="col-md-4">
-                <div class="card shadow-sm border-0 mb-4 bg-light sticky-top sticky-form-top">
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold text-primary">@(currentEvent.Id == 0 ? "Create New Event" : "Edit Event")</h5>
-                        <hr />
-                        <form @onsubmit="SaveEvent" @onsubmit:preventDefault="true">
-                            <div class="mb-3">
-                                <label class="form-label">Event Name</label>
-                                <input type="text" class="form-control" @bind="currentEvent.Name" placeholder="e.g., Regional Finals" required />
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary w-100">Save Event</button>
-                                @if(currentEvent.Id != 0) { <button type="button" class="btn btn-secondary" @onclick="ClearEventForm">Cancel</button> }
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="card shadow-sm border-0 bg-light sticky-top sticky-form-bottom">
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold header-dark-text">@(currentSubEvent.Id == 0 ? "Create Sub-Event" : "Edit Sub-Event")</h5>
-                        <hr />
-                        <form @onsubmit="SaveSubEvent" @onsubmit:preventDefault="true">
-                            <div class="mb-3">
-                                <label class="form-label">Sub-Event Name</label>
-                                <input type="text" class="form-control" @bind="currentSubEvent.Name" placeholder="e.g., Junior Choir" required />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Parent Event</label>
-                                <select class="form-select" @bind="currentSubEvent.EventId" required>
-                                    <option value="0">-- Select Main Event --</option>
-                                    @foreach(var ev in Events) { <option value="@ev.Id">@ev.Name</option> }
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Chairman Judge</label>
-                                <select class="form-select" @bind="currentSubEvent.ChairmanJudgeId">
-                                    <option value="">-- Auto-Assign (First Judge) --</option>
-                                    @foreach(var judge in Judges) { <option value="@judge.Id">@judge.Name</option> }
-                                </select>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-dark-custom text-white w-100">Save Sub-Event</button>
-                                @if(currentSubEvent.Id != 0) { <button type="button" class="btn btn-secondary" @onclick="ClearSubEventForm">Cancel</button> }
-                            </div>
-                        </form>
-                    </div>
-                </div>
+            <h2 class="fw-bold text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Event Architecture</h2>
+            <div>
+                <button class="btn liquid-btn fw-bold shadow-sm me-2 text-white" @onclick="CreateEvent">
+                    <i class="bi bi-plus-circle-fill me-1"></i> New Event
+                </button>
+                <a href="/admin-panel" class="btn btn-outline-light fw-bold"><i class="bi bi-arrow-left me-1"></i> Back</a>
             </div>
         </div>
+
+        @if (!Events.Any())
+        {
+            <div class="glass-panel text-center p-5 rounded-4 shadow-sm mt-5">
+                <i class="bi bi-calendar-x fs-1 text-white-50 mb-3 d-block"></i>
+                <h4 class="fw-bold text-white">No Events Created Yet</h4>
+                <p class="text-white-50 mb-0">Click the "New Event" button above to get started.</p>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var ev in Events)
+                {
+                    <div class="col-xl-6">
+                        <div class="glass-panel p-4 h-100 d-flex flex-column hover-zoom">
+                            <!-- Event Card Header -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h3 class="fw-bold text-white mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">@ev.Name</h3>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-light border-0" @onclick="() => EditEvent(ev)" title="Edit Event"><i class="bi bi-pencil-square fs-4"></i></button>
+                                    <button class="btn btn-sm btn-outline-danger border-0" @onclick="() => DeleteEvent(ev)" title="Delete Event"><i class="bi bi-trash fs-4"></i></button>
+                                </div>
+                            </div>
+                            
+                            <hr class="border-light border-opacity-10 mt-0 mb-4" />
+                            
+                            <!-- Sub-Events Section -->
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="text-white-50 mb-0 fw-bold fs-6 text-uppercase" style="letter-spacing: 1px;">Sub-Events</h5>
+                                <button class="btn btn-sm liquid-btn text-white fw-bold shadow-sm" @onclick="() => CreateSubEvent(ev.Id)">
+                                    <i class="bi bi-plus-lg me-1"></i> Add
+                                </button>
+                            </div>
+                            
+                            @{ var eventSubs = SubEvents.Where(s => s.EventId == ev.Id).ToList(); }
+                            @if (!eventSubs.Any())
+                            {
+                                <div class="text-center text-white-50 p-4 bg-black bg-opacity-25 rounded-4 border border-light border-opacity-10 mt-2">
+                                    No sub-events configured for this event.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex flex-column gap-3 flex-grow-1 mt-2">
+                                    @foreach (var sub in eventSubs)
+                                    {
+                                        <div class="bg-white bg-opacity-10 border border-light border-opacity-10 rounded-3 p-3 d-flex justify-content-between align-items-center shadow-sm transition-all" style="backdrop-filter: blur(5px);">
+                                            <div>
+                                                <strong class="d-block text-white fs-5 mb-1" style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">@sub.Name</strong>
+                                                <small class="text-white-50 d-flex align-items-center">
+                                                    <i class="bi bi-person-badge me-2"></i> 
+                                                    Chairman: @(Judges.FirstOrDefault(j => j.Id == sub.ChairmanJudgeId)?.Name ?? "Auto-Assigned")
+                                                </small>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-sm text-info bg-transparent border-0" @onclick="() => EditSubEvent(sub)" title="Edit Sub-Event"><i class="bi bi-pencil-square fs-4"></i></button>
+                                                <button class="btn btn-sm text-danger bg-transparent border-0" @onclick="() => DeleteSubEvent(sub)" title="Delete Sub-Event"><i class="bi bi-trash fs-4"></i></button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- 1. Custom Event Modal -->
+        @if (showEventModal)
+        {
+            <div class="glass-modal-overlay" @onclick="CloseModals">
+                <div class="glass-modal p-4 p-md-5" @onclick:stopPropagation="true">
+                    <h3 class="text-white fw-bold mb-4">@(currentEvent.Id == 0 ? "Create New Event" : "Edit Event")</h3>
+                    <form @onsubmit="SaveEvent" @onsubmit:preventDefault="true">
+                        <div class="mb-5">
+                            <label class="form-label text-white-50 fs-6">Event Name</label>
+                            <input type="text" class="form-control glass-input fs-5 text-white py-3" @bind="currentEvent.Name" placeholder="e.g., Regional Finals" required autofocus />
+                        </div>
+                        <div class="d-flex justify-content-end gap-3 mt-4 pt-2 border-top border-light border-opacity-10">
+                            <button type="button" class="btn btn-outline-light px-4 fw-bold" @onclick="CloseModals">Cancel</button>
+                            <button type="submit" class="btn liquid-btn px-5 fw-bold text-white">Save Event</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+
+        <!-- 2. Custom Sub-Event Modal -->
+        @if (showSubEventModal)
+        {
+            <div class="glass-modal-overlay" @onclick="CloseModals">
+                <div class="glass-modal p-4 p-md-5" @onclick:stopPropagation="true">
+                    <h3 class="text-white fw-bold mb-4">@(currentSubEvent.Id == 0 ? "Create Sub-Event" : "Edit Sub-Event")</h3>
+                    <form @onsubmit="SaveSubEvent" @onsubmit:preventDefault="true">
+                        <div class="mb-4">
+                            <label class="form-label text-white-50 fs-6">Sub-Event Name</label>
+                            <input type="text" class="form-control glass-input fs-5 text-white py-3" @bind="currentSubEvent.Name" placeholder="e.g., Junior Choir" required autofocus />
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-white-50 fs-6">Parent Event</label>
+                            <select class="form-select glass-input fs-5 text-white py-3" @bind="currentSubEvent.EventId" required>
+                                <option value="0">-- Select Main Event --</option>
+                                @foreach(var ev in Events) { <option value="@ev.Id">@ev.Name</option> }
+                            </select>
+                        </div>
+                        <div class="mb-5">
+                            <label class="form-label text-white-50 fs-6">Chairman Judge</label>
+                            <select class="form-select glass-input fs-5 text-white py-3" @bind="currentSubEvent.ChairmanJudgeId">
+                                <option value="">-- Auto-Assign (First Judge) --</option>
+                                @foreach(var judge in Judges) { <option value="@judge.Id">@judge.Name</option> }
+                            </select>
+                        </div>
+                        <div class="d-flex justify-content-end gap-3 mt-4 pt-4 border-top border-light border-opacity-10">
+                            <button type="button" class="btn btn-outline-light px-4 fw-bold" @onclick="CloseModals">Cancel</button>
+                            <button type="submit" class="btn liquid-btn px-5 fw-bold text-white">Save Sub-Event</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
     </div>
 }
 
@@ -154,6 +153,9 @@
 
     private Event currentEvent = new();
     private SubEvent currentSubEvent = new();
+
+    private bool showEventModal = false;
+    private bool showSubEventModal = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -169,31 +171,59 @@
         Judges = await DbContext.Judges.ToListAsync();
     }
 
+    private void CloseModals()
+    {
+        showEventModal = false;
+        showSubEventModal = false;
+    }
+
     // --- Event Logic ---
-    private void EditEvent(Event ev) => currentEvent = new Event { Id = ev.Id, Name = ev.Name };
-    private void ClearEventForm() => currentEvent = new Event();
+    private void CreateEvent()
+    {
+        currentEvent = new Event();
+        showEventModal = true;
+    }
+
+    private void EditEvent(Event ev)
+    {
+        currentEvent = new Event { Id = ev.Id, Name = ev.Name };
+        showEventModal = true;
+    }
+
     private async Task SaveEvent()
     {
         if (string.IsNullOrWhiteSpace(currentEvent.Name)) return;
         if (currentEvent.Id == 0) DbContext.Events.Add(currentEvent);
         else { var existing = await DbContext.Events.FindAsync(currentEvent.Id); if (existing != null) { existing.Name = currentEvent.Name; DbContext.Events.Update(existing); } }
         await DbContext.SaveChangesAsync();
-        ClearEventForm();
+        showEventModal = false;
         await LoadData();
     }
+
     private async Task DeleteEvent(Event ev) { DbContext.Events.Remove(ev); await DbContext.SaveChangesAsync(); await LoadData(); }
 
     // --- Sub-Event Logic ---
-    private void EditSubEvent(SubEvent sub) => currentSubEvent = new SubEvent { Id = sub.Id, Name = sub.Name, EventId = sub.EventId, ChairmanJudgeId = sub.ChairmanJudgeId };
-    private void ClearSubEventForm() => currentSubEvent = new SubEvent();
+    private void CreateSubEvent(int parentEventId)
+    {
+        currentSubEvent = new SubEvent { EventId = parentEventId };
+        showSubEventModal = true;
+    }
+
+    private void EditSubEvent(SubEvent sub)
+    {
+        currentSubEvent = new SubEvent { Id = sub.Id, Name = sub.Name, EventId = sub.EventId, ChairmanJudgeId = sub.ChairmanJudgeId };
+        showSubEventModal = true;
+    }
+
     private async Task SaveSubEvent()
     {
         if (string.IsNullOrWhiteSpace(currentSubEvent.Name) || currentSubEvent.EventId == 0) return;
         if (currentSubEvent.Id == 0) DbContext.SubEvents.Add(currentSubEvent);
         else { var existing = await DbContext.SubEvents.FindAsync(currentSubEvent.Id); if (existing != null) { existing.Name = currentSubEvent.Name; existing.EventId = currentSubEvent.EventId; existing.ChairmanJudgeId = currentSubEvent.ChairmanJudgeId; DbContext.SubEvents.Update(existing); } }
         await DbContext.SaveChangesAsync();
-        ClearSubEventForm();
+        showSubEventModal = false;
         await LoadData();
     }
+
     private async Task DeleteSubEvent(SubEvent sub) { DbContext.SubEvents.Remove(sub); await DbContext.SaveChangesAsync(); await LoadData(); }
 }

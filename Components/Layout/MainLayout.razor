@@ -9,11 +9,33 @@
         background: transparent !important;
         background-image: none !important;
     }
+
+    /* --- Global Approachability (Touch-Friendly UI) --- */
+    .btn, .liquid-btn {
+        padding: 0.65rem 1.5rem !important;
+        font-weight: 600;
+        border-radius: 0.5rem !important;
+    }
+    .form-control, .form-select, .glass-input {
+        padding: 0.8rem 1.25rem !important;
+        border-radius: 0.5rem !important;
+    }
+
     /* Enhance standard HTML dropdown options to match the dark glass theme */
     select.glass-input option {
         background-color: #0f172a !important; /* Deep Navy */
         color: #ffffff !important;
         padding: 12px;
+    }
+
+    /* --- Custom Dropdown Arrow & Recessed Look --- */
+    select.glass-input {
+        background-color: rgba(0, 0, 0, 0.2) !important; /* Slightly darker depth for dropdowns */
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+        background-size: 16px 12px !important;
+        background-repeat: no-repeat !important;
+        background-position: right 1rem center !important;
+        cursor: pointer;
     }
 
     /* --- Clear Glass Overrides for legacy app.css classes --- */
@@ -83,21 +105,6 @@
         pointer-events: none;
     }
 
-    .dynamic-island {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        box-shadow: 
-            0 15px 35px rgba(0, 0, 0, 0.15) !important;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        animation: dynamicIslandFloat 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        position: relative;
-        overflow: hidden;
-    }
-    .dynamic-island:hover {
-        transform: scale(1.05) translateY(-2px);
-        box-shadow: 
-            0 20px 45px rgba(0, 0, 0, 0.2) !important;
-    }
     .liquid-backdrop {
         backdrop-filter: blur(16px) saturate(200%) contrast(1.1);
         -webkit-backdrop-filter: blur(16px) saturate(200%) contrast(1.1);
@@ -105,29 +112,11 @@
         filter: url(#liquid-refraction);
         border-radius: inherit;
     }
-    /* Animated Glossy Glare */
-    .dynamic-island::after {
-        content: '';
-        position: absolute;
-        top: 0; left: -150%;
-        width: 100%; height: 100%;
-        background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%);
-        transform: skewX(-30deg);
-        animation: glassShine 6s infinite;
-        pointer-events: none;
-        z-index: 2;
-    }
-    @@keyframes glassShine {
-        0% { left: -150%; }
-        20% { left: 150%; }
-        100% { left: 150%; }
-    }
-    @@keyframes dynamicIslandFloat {
-        0% { transform: translateY(-30px) scale(0.9); opacity: 0; }
-        100% { transform: translateY(0) scale(1); opacity: 1; }
-    }
 
     /* --- 3D Liquid Glass Tables with Refraction --- */
+    .table-responsive {
+        overflow: visible !important; /* Prevents tooltips from being clipped by the table container */
+    }
     .glass-table {
         border-collapse: separate !important;
         border-spacing: 0 8px !important;
@@ -147,6 +136,14 @@
     .glass-table thead th:first-child { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
     .glass-table thead th:last-child { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
     
+    .glass-table thead {
+        position: relative;
+        z-index: 1;
+    }
+    .glass-table tbody {
+        position: relative;
+        z-index: 10; /* Forces the body (and tooltips) to render ABOVE the blurred table header */
+    }
     .glass-table tbody tr {
         background: rgba(255, 255, 255, 0.02) !important;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -158,7 +155,7 @@
         box-shadow: 
             0 15px 35px rgba(0, 0, 0, 0.2) !important;
         position: relative;
-        z-index: 10;
+        z-index: 9999;
     }
     .glass-table td { 
         border: none !important; 
@@ -182,50 +179,6 @@
     .glass-table tbody td:first-child::before { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
     .glass-table tbody td:last-child { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
     .glass-table tbody td:last-child::before { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
-
-    /* --- Sidebar & Navigation Glass Styles --- */
-    .glass-sidebar-3d {
-        background: transparent !important;
-        border: 1px solid rgba(255, 255, 255, 0.02) !important;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
-        margin: 1.5rem 0 1.5rem 1.5rem;
-        border-radius: 1.5rem;
-        position: relative;
-        z-index: 10;
-        animation: sidebarSlideIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    }
-    .sidebar-backdrop {
-        backdrop-filter: blur(20px) saturate(150%) contrast(1.1);
-        -webkit-backdrop-filter: blur(20px) saturate(150%) contrast(1.1);
-        filter: url(#liquid-refraction);
-        border-radius: inherit;
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        pointer-events: none;
-    }
-    .glass-nav-link {
-        color: #f8f9fa !important;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.3);
-        font-weight: 600;
-        border-radius: 1rem !important;
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        padding: 0.75rem 1.25rem;
-    }
-    .glass-nav-link:hover {
-        background: rgba(255, 255, 255, 0.4);
-        transform: translateX(6px);
-    }
-    .glass-nav-link.active {
-        background: rgba(255, 255, 255, 0.1) !important;
-        color: #008DD0 !important;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important;
-        transform: scale(1.03) translateX(4px);
-    }
-    @@keyframes sidebarSlideIn {
-        0% { transform: translateX(-50px); opacity: 0; }
-        100% { transform: translateX(0); opacity: 1; }
-    }
 
     /* --- Judge Dashboard Specific Glass Styles --- */
     .contestant-list-item {
@@ -254,49 +207,6 @@
     .contestant-list-item.active::before { opacity: 1; }
     .contestant-list-item .bi-check-circle-fill { opacity: 0.8; }
 
-    /* --- Responsive Dynamic Display (Mobile/Tablet) --- */
-    @@media (max-width: 767.98px) {
-        .glass-sidebar-3d {
-            position: fixed !important;
-            top: 0;
-            left: -320px;
-            height: calc(100vh - 3rem);
-            transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 1050 !important;
-        }
-        .glass-sidebar-3d.mobile-open {
-            left: 0;
-        }
-        .dynamic-island {
-            width: 90% !important;
-            padding: 0.5rem 1.5rem !important;
-            min-width: auto !important;
-        }
-        .main-content {
-            width: 100% !important;
-            max-width: 100vw !important;
-            overflow-x: hidden;
-        }
-        .mobile-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            z-index: 1040;
-            transition: opacity 0.3s;
-            opacity: 0;
-        }
-        .mobile-overlay.mobile-open {
-            display: block;
-            opacity: 1;
-        }
-    }
-    @@media (min-width: 768px) {
-        .mobile-overlay { display: none !important; }
-    }
-
     /* --- Global Morph Page Transition --- */
     .page-transition {
         animation: morphPage 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -315,26 +225,96 @@
             filter: blur(0px);
         }
     }
+
+    /* --- Formal Document Print Styles --- */
+    @@media print {
+        @@page { size: auto; margin: 0.75in; }
+        html, body, .main-layout-container, .main-content {
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-size: 12pt !important;
+        }
+        #shader-bg-container, svg[aria-hidden="true"] {
+            display: none !important;
+        }
+        * {
+            text-shadow: none !important;
+            box-shadow: none !important;
+            filter: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            transition: none !important;
+            animation: none !important;
+        }
+        .glass-panel, .glass-card {
+            border: none !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+        /* Formal Table Styling */
+        .glass-table {
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
+            width: 100% !important;
+            margin-top: 1rem !important;
+        }
+        .glass-table th, .glass-table td {
+            border: 1px solid #000000 !important;
+            color: #000000 !important;
+            background: transparent !important;
+            padding: 10px !important;
+        }
+        .glass-table thead th {
+            background-color: #f2f2f2 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            border-bottom: 2px solid #000000 !important;
+        }
+        .glass-table thead th:first-child, .glass-table thead th:last-child,
+        .glass-table tbody td:first-child, .glass-table tbody td:last-child {
+            border-radius: 0 !important;
+        }
+        .text-white, .text-white-50 {
+            color: #000000 !important;
+        }
+        .badge {
+            color: #000000 !important;
+            background: transparent !important;
+            border: none !important;
+            font-size: 11pt !important;
+            font-weight: bold !important;
+            padding: 0 !important;
+        }
+    }
+
+    /* --- Glassmorphism Blazor Error UI --- */
+    #blazor-error-ui {
+        background: rgba(15, 23, 42, 0.95) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: #fff !important;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5) !important;
+        padding: 1rem 1.5rem !important;
+        z-index: 9999 !important;
+        border-top-left-radius: 1rem;
+        border-top-right-radius: 1rem;
+    }
+    #blazor-error-ui .reload { color: #00AEEF !important; font-weight: bold; text-decoration: none; margin-left: 1rem; }
+    #blazor-error-ui .reload:hover { text-decoration: underline; }
+    #blazor-error-ui .dismiss { color: #fff !important; opacity: 0.5; cursor: pointer; transition: opacity 0.2s; }
+    #blazor-error-ui .dismiss:hover { opacity: 1; }
 </style>
 
 <div class="d-flex main-layout-container min-vh-100">
     <!-- The WebGL Shader Background Container -->
     <div id="shader-bg-container" class="position-fixed w-100 h-100 top-0 start-0" style="z-index: -2;"></div>
 
-    <!-- Sidebar -->
-    <NavMenu />
-
     <!-- Main Content Area -->
     <main class="flex-grow-1 d-flex flex-column main-content">
-        <div class="w-100 d-flex justify-content-center d-print-none">
-            <nav class="navbar rounded-pill mt-4 mb-4 px-5 py-2 dynamic-island" style="min-width: 250px; z-index: 1000;">
-                <div class="position-absolute w-100 h-100 top-0 start-0 liquid-backdrop" style="z-index: -1;"></div>
-                <a class="navbar-brand fw-bold mb-0 text-white m-0 d-flex align-items-center" href="/" style="letter-spacing: 0.5px; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                    <img src="/images/namcya_logo.png" alt="Logo" style="height: 28px;" class="me-2" />
-                    NAMCYA Tabulation
-                </a>
-            </nav>
-        </div>
+        <NavMenu />
 
         <article class="px-4 pb-5 page-transition" @key="NavManager.Uri">
             @Body

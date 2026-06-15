@@ -15,6 +15,7 @@ namespace NamcyaTabulation.Services
         public decimal RankSum { get; set; }
         public decimal FinalScore { get; set; }
         public int Rank { get; set; }
+        public List<string> Comments { get; set; } = new();
     }
 
     public class JudgeScoreBreakdown
@@ -77,6 +78,20 @@ namespace NamcyaTabulation.Services
                 }).OrderBy(c => c.ContestantName).ToList();
             }
 
+            var allComments = new List<string>();
+            try 
+            {
+                allComments = await _context.JudgeComments
+                    .AsNoTracking()
+                    .Where(c => c.Contestant!.CategoryId == categoryId && !string.IsNullOrWhiteSpace(c.Comment))
+                    .Select(c => c.Comment)
+                    .ToListAsync();
+            }
+            catch 
+            {
+                // Failsafe: Ignore comments if the table is unavailable
+            }
+
             // 1. Calculate Total Score per judge per contestant (safely handling un-scored contestants as 0)
             var contestantJudgeScores = new List<(int ContestantId, string ContestantName, int JudgeId, decimal TotalScore)>();
             
@@ -130,7 +145,8 @@ namespace NamcyaTabulation.Services
                     ContestantId = group.Key.ContestantId,
                     ContestantName = group.Key.ContestantName,
                     RankSum = rankSum,
-                    FinalScore = averageScore
+                    FinalScore = averageScore,
+                    Comments = allComments // Use the safely fetched comments
                 });
             }
 
@@ -209,6 +225,109 @@ namespace NamcyaTabulation.Services
             }
             
             return breakdown.OrderBy(b => b.JudgeName).ThenBy(b => b.JudgeRank).ToList();
+        }
+
+        public string GenerateResultsExcelHtml(List<TabulationResult> results, string eventName, string subEventName, string categoryName)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns=\"http://www.w3.org/TR/REC-html40\">");
+            sb.AppendLine("<head>");
+            sb.AppendLine("<meta charset=\"UTF-8\">");
+            
+            // Native Excel XML settings to force A4 Page Size and Print Layout
+            sb.AppendLine("<!--[if gte mso 9]>");
+            sb.AppendLine("<xml>");
+            sb.AppendLine(" <x:ExcelWorkbook>");
+            sb.AppendLine("  <x:ExcelWorksheets>");
+            sb.AppendLine("   <x:ExcelWorksheet>");
+            sb.AppendLine("    <x:Name>Official Results</x:Name>");
+            sb.AppendLine("    <x:WorksheetOptions>");
+            sb.AppendLine("     <x:PageSetup>");
+            sb.AppendLine("      <x:Layout x:Orientation=\"Portrait\"/>");
+            sb.AppendLine("     </x:PageSetup>");
+            sb.AppendLine("     <x:Print>");
+            sb.AppendLine("      <x:ValidPrinterInfo/>");
+            sb.AppendLine("      <x:PaperSizeIndex>9</x:PaperSizeIndex> <!-- 9 = A4 Size -->");
+            sb.AppendLine("      <x:FitWidth>1</x:FitWidth>");
+            sb.AppendLine("      <x:FitHeight>100</x:FitHeight>");
+            sb.AppendLine("     </x:Print>");
+            sb.AppendLine("     <x:Selected/>");
+            sb.AppendLine("     <x:FitToPage/>");
+            sb.AppendLine("    </x:WorksheetOptions>");
+            sb.AppendLine("   </x:ExcelWorksheet>");
+            sb.AppendLine("  </x:ExcelWorksheets>");
+            sb.AppendLine(" </x:ExcelWorkbook>");
+            sb.AppendLine("</xml>");
+            sb.AppendLine("<![endif]-->");
+
+            sb.AppendLine("<style>");
+            sb.AppendLine("body { font-family: 'Times New Roman', serif; }");
+            sb.AppendLine("table { border-collapse: collapse; width: 550pt; margin: 0 auto; }");
+            sb.AppendLine("th { background-color: #f2f2f2; color: #000000; font-weight: bold; padding: 12px; border: 1pt solid black; text-align: center; font-size: 12pt; text-transform: uppercase; }");
+            sb.AppendLine("td { padding: 10px; border: 1pt solid black; text-align: center; vertical-align: middle; font-size: 11pt; color: #000000; }");
+            sb.AppendLine(".no-border { border: none !important; }");
+            sb.AppendLine(".title { font-size: 20pt; font-weight: bold; color: #000000; text-align: center; border: none; letter-spacing: 1px; text-transform: uppercase; }");
+            sb.AppendLine(".subtitle { font-size: 14pt; font-weight: bold; color: #333333; text-align: center; border: none; }");
+            sb.AppendLine(".meta-info { font-size: 11pt; font-weight: bold; text-align: left; border: none; color: #000000; }");
+            sb.AppendLine(".text-left { text-align: left; }");
+            sb.AppendLine(".gold { background-color: #fff9e6; font-weight: bold; }"); // Very subtle professional gold
+            sb.AppendLine(".silver { background-color: #f0f4f8; font-weight: bold; }"); // Very subtle professional silver
+            sb.AppendLine(".bronze { background-color: #fff3e6; font-weight: bold; }"); // Very subtle professional bronze
+            sb.AppendLine(".sig-line { border-bottom: 1pt solid black; border-top: none; border-left: none; border-right: none; }");
+            sb.AppendLine("</style></head><body>");
+            
+            sb.AppendLine("<table>");
+            
+            // Formal Header
+            sb.AppendLine($"<tr><td colspan=\"4\" class=\"title\">Official Tabulation Results</td></tr>");
+            sb.AppendLine($"<tr><td colspan=\"4\" class=\"subtitle\">{eventName}</td></tr>");
+            sb.AppendLine("<tr><td colspan=\"4\" class=\"no-border\">&nbsp;</td></tr>");
+            
+            // Structured Metadata (Side by side)
+            sb.AppendLine($"<tr><td colspan=\"2\" class=\"meta-info\">Sub-Event: {subEventName}</td><td colspan=\"2\" class=\"meta-info\" style=\"text-align: right;\">Date: {DateTime.Now:MMMM dd, yyyy}</td></tr>");
+            sb.AppendLine($"<tr><td colspan=\"4\" class=\"meta-info\">Category: {categoryName}</td></tr>");
+            sb.AppendLine("<tr><td colspan=\"4\" class=\"no-border\">&nbsp;</td></tr>");
+            
+            sb.AppendLine("<tr>");
+            sb.AppendLine("<th style=\"width: 70pt;\">Rank</th>");
+            sb.AppendLine("<th class=\"text-left\" style=\"width: 280pt;\">Contestant Name</th>");
+            sb.AppendLine("<th style=\"width: 100pt;\">Rank Sum</th>");
+            sb.AppendLine("<th style=\"width: 100pt;\">Average Score</th>");
+            sb.AppendLine("</tr>");
+
+            foreach (var rank in results)
+            {
+                var rankDisplay = (rank.FinalScore == 0 && rank.Rank == 0) ? "-" : rank.Rank.ToString();
+                var sumDisplay = (rank.FinalScore == 0 && rank.Rank == 0) ? "-" : rank.RankSum.ToString("0.##");
+                var scoreDisplay = (rank.FinalScore == 0 && rank.Rank == 0) ? "-" : rank.FinalScore.ToString("0.##");
+                
+                string rowClass = rank.Rank == 1 ? "gold" : rank.Rank == 2 ? "silver" : rank.Rank == 3 ? "bronze" : "";
+
+                sb.AppendLine("<tr>");
+                sb.AppendLine($"<td class=\"{rowClass}\">{rankDisplay}</td>");
+                sb.AppendLine($"<td class=\"text-left {rowClass}\">{rank.ContestantName}</td>");
+                sb.AppendLine($"<td class=\"{rowClass}\">{sumDisplay}</td>");
+                sb.AppendLine($"<td class=\"{rowClass}\">{scoreDisplay}</td>");
+                sb.AppendLine("</tr>");
+            }
+
+            sb.AppendLine("</table>");
+
+            // Add Signature Lines for Physical Document Signing
+            sb.AppendLine("<br><br><br>");
+            sb.AppendLine("<table style=\"width: 550pt; margin: 0 auto; border: none;\">");
+            sb.AppendLine("<tr><td class=\"no-border\" style=\"width: 10%;\"></td><td class=\"sig-line\" style=\"width: 35%;\">&nbsp;</td><td class=\"no-border\" style=\"width: 10%;\"></td><td class=\"sig-line\" style=\"width: 35%;\">&nbsp;</td><td class=\"no-border\" style=\"width: 10%;\"></td></tr>");
+            sb.AppendLine("<tr><td class=\"no-border\"></td><td class=\"no-border\" style=\"text-align: center; font-weight: bold; font-size: 11pt;\">Chairman, Board of Judges</td><td class=\"no-border\"></td><td class=\"no-border\" style=\"text-align: center; font-weight: bold; font-size: 11pt;\">Official Tabulator</td><td class=\"no-border\"></td></tr>");
+            sb.AppendLine("</table>");
+
+            // Add Official Subdued NAMCYA Branding Footer
+            sb.AppendLine("<br><br>");
+            sb.AppendLine("<table style=\"width: 550pt; margin: 0 auto; border: none;\">");
+            sb.AppendLine("<tr><td style=\"font-weight: bold; text-align: center; color: #000000; font-size: 10pt; border: none;\">NAMCYA - National Music Competitions for Young Artists</td></tr>");
+            sb.AppendLine("<tr><td style=\"text-align: center; color: #666666; font-size: 9pt; border: none;\">www.namcya.com | namcya@gmail.com | 8836-4928 / 0949 993 2592</td></tr>");
+            sb.AppendLine($"<tr><td style=\"text-align: center; color: #666666; font-size: 9pt; border: none; font-style: italic;\">Generated by NAMCYA Tabulation System on {DateTime.Now:MMMM dd, yyyy 'at' hh:mm tt}</td></tr>");
+            sb.AppendLine("</table></body></html>");
+            return sb.ToString();
         }
     }
 }

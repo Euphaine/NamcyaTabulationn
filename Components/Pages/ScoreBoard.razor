@@ -14,6 +14,49 @@
 <PageTitle>Live Scoreboard</PageTitle>
 
 <style>
+    /* Minimal Anonymous Comment Tooltip */
+    .comment-icon-wrapper {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+    }
+    .comment-tooltip {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: 140%;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px);
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: #fff;
+        padding: 1.25rem;
+        border-radius: 1rem;
+        width: max-content;
+        max-width: 400px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        z-index: 1000;
+        pointer-events: none;
+    }
+    .comment-icon-wrapper:hover .comment-tooltip {
+        visibility: visible;
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    .comment-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -8px;
+        border-width: 8px;
+        border-style: solid;
+        border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+    }
+
     @@media print {
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .print-card { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
@@ -114,6 +157,9 @@
                     <button class="btn btn-sm fw-bold shadow-sm me-2 liquid-btn" @onclick="PrintToPdf">
                         <i class="bi bi-printer me-1"></i> Print / PDF
                     </button>
+                    <button class="btn btn-sm fw-bold shadow-sm me-2 text-white" style="background-color: #198754;" @onclick="ExportToExcel">
+                        <i class="bi bi-file-earmark-excel me-1"></i> Export to Excel
+                    </button>
                     <!-- Here is the fix: replaced <a> with a <button>! -->
                     <button class="btn btn-sm fw-bold shadow-sm liquid-btn" @onclick="@(() => NavManager.NavigateTo($"/judge-breakdown/{SelectedCategory?.Id}"))">
                         <i class="bi bi-eye me-1"></i> View Judge Breakdown
@@ -152,6 +198,21 @@
                                     </td>
                                     <td class="text-start fw-bold text-white fs-5" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
                                         @rank.ContestantName
+                                    @if (rank.Comments != null && rank.Comments.Any())
+                                    {
+                                        <div class="comment-icon-wrapper ms-3 d-print-none align-middle">
+                                            <i class="bi bi-chat-square-text-fill text-info fs-5 opacity-75 transition-all hover-zoom"></i>
+                                            <div class="comment-tooltip fw-normal" style="text-shadow: none;">
+                                                <div class="text-white-50 small fw-bold mb-2 border-bottom border-light border-opacity-10 pb-2"><i class="bi bi-incognito me-2"></i>ANONYMOUS FEEDBACK</div>
+                                                <div class="d-flex flex-column gap-2 mt-2">
+                                                    @foreach (var comment in rank.Comments)
+                                                    {
+                                                        <div class="text-start" style="font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap;"><i class="bi bi-quote text-white-50 me-1"></i>@comment</div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
                                     </td>
                                     <td>
                                         @if (rank.FinalScore == 0 && rank.Rank == 0) { <span class="badge bg-white bg-opacity-10 text-white-50 border border-light border-opacity-10 fs-6 px-3 py-2">-</span> }
@@ -172,38 +233,65 @@
 
         <!-- Print-Only Signatures & Footer -->
         <div class="d-none d-print-block mt-5 pt-5">
-            <div class="row text-center mt-5 pt-4 justify-content-center">
-                @if (AssignedJudges.Any())
+            @if (AssignedJudges.Any())
+            {
+                var chairman = AssignedJudges.FirstOrDefault(j => j.Id == SelectedSubEvent?.ChairmanJudgeId) 
+                                ?? AssignedJudges.FirstOrDefault();
+                var members = AssignedJudges.Where(j => j.Id != chairman?.Id).ToList();
+
+                <!-- Chairman in the middle -->
+                @if (chairman != null)
                 {
-                    @foreach (var judge in AssignedJudges)
-                    {
-                        <div class="col-4 mb-5">
+                    <div class="row text-center justify-content-center mb-5">
+                        <div class="col-5">
                             <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
-                            <div class="mt-2 fw-bold text-uppercase">@judge.Name</div>
-                            <div class="small text-muted">
-                                @(judge.Id == (SelectedSubEvent?.ChairmanJudgeId ?? AssignedJudges.FirstOrDefault()?.Id) ? "Chairman, Board of Judges" : "Member, Board of Judges")
-                            </div>
+                            <div class="mt-2 fw-bold text-uppercase text-dark">@chairman.Name</div>
+                            <div class="small fw-bold text-dark">Chairman, Board of Judges</div>
                         </div>
-                    }
-                    <div class="col-12 mt-2"></div>
-                    <div class="col-4 mb-5">
-                        <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
-                        <div class="mt-2 fw-bold text-uppercase">@AuthService.CurrentOrganizer?.Username</div>
-                        <div class="small text-muted">Official Tabulator</div>
                     </div>
                 }
-                else
+
+                <!-- Members followed below -->
+                @if (members.Any())
                 {
-                    <div class="col-4 mb-5">
-                        <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
-                        <div class="mt-2 fw-bold">Chairman of the Board</div>
+                    <div class="row text-center justify-content-center mb-5">
+                        @foreach (var judge in members)
+                        {
+                            <div class="col-4 mb-4">
+                                <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                                <div class="mt-2 fw-bold text-uppercase text-dark">@judge.Name</div>
+                                <div class="small text-dark">Member, Board of Judges</div>
+                            </div>
+                        }
                     </div>
                 }
-            </div>
-            <div class="text-center mt-5 pt-3 text-muted" style="font-size: 0.85rem;">
+
+                <!-- Official Tabulator at the bottom-center -->
+                <div class="row text-center justify-content-center mb-4 mt-5">
+                    <div class="col-5">
+                        <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                        <div class="mt-2 fw-bold text-uppercase text-dark">@AuthService.CurrentOrganizer?.Username</div>
+                        <div class="small text-dark">Official Tabulator</div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Fallback if no judges are assigned yet -->
+                <div class="row text-center justify-content-center mb-5">
+                    <div class="col-5">
+                        <div style="border-bottom: 1px solid black; width: 80%; margin: 0 auto;"></div>
+                        <div class="mt-2 fw-bold text-dark">Chairman of the Board</div>
+                    </div>
+                </div>
+            }
+
+            <!-- Logo and Company Information -->
+            <div class="text-center mt-5 pt-2 text-dark" style="font-size: 0.85rem;">
+                <img src="/images/namcya_logo.png" style="max-height: 80px;" alt="NAMCYA Logo" class="mb-3" />
                 <p class="mb-1 fw-bold text-dark">NAMCYA - National Music Competitions for Young Artists</p>
                 <p class="mb-1">www.namcya.com | namcya@gmail.com | 8836-4928 / 0949 993 2592</p>
-                <p class="mb-0 fst-italic">Generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' hh:mm tt")</p>
+                <p class="mb-0 fst-italic text-muted mt-2">Generated on @DateTime.Now.ToString("MMMM dd, yyyy 'at' hh:mm tt")</p>
             </div>
         </div>
             }
@@ -335,7 +423,15 @@
     {
         if (SelectedCategory != null)
         {
-            Rankings = await TabService.GetRankingAsync(SelectedCategory.Id);
+            try
+            {
+                Rankings = await TabService.GetRankingAsync(SelectedCategory.Id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching rankings: {ex.Message}");
+                ShowToast("Failed to fetch scores. Ensure database updates are applied.");
+            }
         }
     }
 
@@ -367,6 +463,27 @@
     private async Task PrintToPdf()
     {
         await JS.InvokeVoidAsync("window.print");
+    }
+
+    private async Task ExportToExcel()
+    {
+        if (SelectedEvent == null || SelectedSubEvent == null || SelectedCategory == null) return;
+
+        if (!Rankings.Any())
+        {
+            ShowToast("No contestants available to export for this category.");
+            return;
+        }
+
+        // Generate the Excel HTML data string
+        string excelContent = TabService.GenerateResultsExcelHtml(Rankings, SelectedEvent.Name, SelectedSubEvent.Name, SelectedCategory.Name);
+        
+        // Create a clean, timestamped file name
+        string fileName = $"{SelectedCategory.Name.Replace(" ", "_")}_Results_{DateTime.Now:yyyyMMdd_HHmm}.xls";
+
+        // Trigger the browser to download the file
+        await JS.InvokeVoidAsync("downloadFileFromText", fileName, excelContent, "application/vnd.ms-excel");
+        ShowToast("Results exported to Excel successfully!");
     }
 
     public void Dispose()

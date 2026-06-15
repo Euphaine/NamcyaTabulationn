@@ -12,105 +12,205 @@
 
 @if (AuthService.CurrentOrganizer != null)
 {
-    <div class="container-fluid mt-4 mb-5 fade-in">
+    <!-- Add d-print-none to hide the main UI when printing -->
+    <div class="container-fluid mt-4 mb-5 fade-in d-print-none">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="fw-bold text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Manage Judges</h2>
-            <a href="/admin-panel" class="btn btn-sm liquid-btn text-white shadow-sm"><i class="bi bi-arrow-left"></i> Back to Hub</a>
+            <div class="d-flex align-items-center gap-3">
+                <h2 class="fw-bold text-white mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Manage Judges</h2>
+                <span class="badge bg-white bg-opacity-25 border border-light border-opacity-10 text-white px-3 py-2 rounded-pill shadow-sm fs-6">@Judges.Count Total</span>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/admin-panel" class="btn btn-outline-light fw-bold shadow-sm d-none d-sm-inline-block"><i class="bi bi-arrow-left me-1"></i> Back</a>
+                <button class="btn btn-outline-info fw-bold shadow-sm" @onclick="PrintJudges" title="Print Judge Credentials">
+                    <i class="bi bi-printer-fill me-1"></i> Print Slips
+                </button>
+                <button class="btn liquid-btn text-white fw-bold shadow-sm" @onclick="OpenAddModal">
+                    <i class="bi bi-person-plus-fill me-1"></i> Add Judge
+                </button>
+            </div>
         </div>
 
-        <div class="row g-4">
-            <!-- Data Lists Column -->
-            <div class="col-md-8">
-                <!-- Judges -->
-                <div class="glass-panel overflow-hidden mb-4">
-                    <div class="p-4 border-bottom border-white border-opacity-10">
-                        <h5 class="mb-0 fw-bold"><i class="bi bi-person-vcard me-2"></i> Judges</h5>
-                    </div>
-                    <div class="p-0">
-                        <div class="table-responsive">
-                            <table class="table align-middle mb-0 glass-table">
-                                <thead>
-                                    <tr>
-                                        <th class="ps-3">ID</th>
-                                        <th>Judge Name</th>
-                                        <th>Access PIN</th>
-                                        <th>Assigned Sub-Events</th>
-                                        <th class="text-end pe-3">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @if (!Judges.Any())
-                                    {
-                                        <tr><td colspan="5" class="text-center text-white-50 py-5">No judges found.</td></tr>
-                                    }
-                                    @foreach (var judge in Judges)
-                                    {
-                                        <tr>
-                                            <td class="ps-3">@judge.Id</td>
-                                            <td class="fw-bold text-white">@judge.Name</td>
-                                            <td><code class="text-info fs-6">@judge.PinCode</code></td>
-                                            <td>
-                                                @if(judge.SubEvents != null && judge.SubEvents.Any())
-                                                {
-                                                    <span class="badge bg-white bg-opacity-25 border border-white border-opacity-10 text-white shadow-sm">@string.Join(", ", judge.SubEvents.Select(s => s.Name))</span>
-                                                }
-                                                else { <span class="text-white-50 small">None</span> }
-                                            </td>
-                                            <td class="text-end pe-3">
-                                                <button class="btn btn-sm liquid-btn text-white me-2" @onclick="() => EditJudge(judge)">Edit</button>
-                                                <button class="btn btn-sm liquid-btn text-danger" @onclick="() => DeleteJudge(judge)">Delete</button>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+        @if (!Judges.Any())
+        {
+            <div class="glass-panel d-flex flex-column align-items-center justify-content-center text-center p-5 mt-4 rounded-4" style="min-height: 400px;">
+                <i class="bi bi-person-vcard fs-1 text-white-50 mb-3" style="font-size: 4rem !important;"></i>
+                <h4 class="text-white fw-bold">No Judges Registered</h4>
+                <p class="text-white-50">Click the "Add Judge" button above to register your first judge.</p>
             </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var judge in Judges)
+                {
+                    <div class="col-md-6 col-lg-4 col-xl-3">
+                        <div class="glass-panel p-4 h-100 d-flex flex-column hover-zoom rounded-4 shadow-sm">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="bg-white bg-opacity-10 border border-white border-opacity-10 rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 50px; height: 50px; backdrop-filter: blur(5px);">
+                                        <i class="bi bi-person-fill text-white fs-3"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="fw-bold text-white mb-0" style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">@judge.Name</h5>
+                                        <small class="text-white-50">ID: @judge.Id</small>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm text-info bg-transparent border-0 p-1" @onclick="() => EditJudge(judge)" title="Edit">
+                                        <i class="bi bi-pencil-square fs-5"></i>
+                                    </button>
+                                    <button class="btn btn-sm text-danger bg-transparent border-0 p-1" @onclick="() => DeleteJudge(judge)" title="Delete">
+                                        <i class="bi bi-trash fs-5"></i>
+                                    </button>
+                                </div>
+                            </div>
 
-            <!-- Forms Column -->
-            <div class="col-md-4">
-                <div class="glass-panel overflow-hidden sticky-top" style="top: 2rem;">
-                    <div class="p-4 border-bottom border-white border-opacity-10">
-                        <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i> @(currentJudge.Id == 0 ? "Create New Judge" : "Edit Judge")</h5>
-                    </div>
-                    <div class="p-4">
-                        <form @onsubmit="SaveJudge" @onsubmit:preventDefault="true">
-                            <div class="mb-3">
-                                <label class="form-label text-white-50">Judge Name</label>
-                                <input type="text" class="form-control glass-input text-white" @bind="currentJudge.Name" placeholder="e.g., John Doe" required />
+                            <div class="mb-4 mt-2">
+                                <div class="text-white-50 small fw-bold mb-1"><i class="bi bi-key me-1"></i> ACCESS PIN</div>
+                                <div class="bg-black bg-opacity-25 rounded-3 p-2 text-center border border-white border-opacity-10" style="box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);">
+                                    <code class="text-info fs-4 fw-bold" style="letter-spacing: 0.25rem;">@judge.PinCode</code>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label text-white-50">Access PIN (Auto-Generated)</label>
-                                <input type="text" class="form-control glass-input fw-bold text-info" style="letter-spacing: 2px;" @bind="currentJudge.PinCode" maxlength="6" readonly />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label text-white-50">Assign to Sub-Events</label>
-                                <div class="p-3 rounded glass-input sub-events-list" style="max-height: 250px; overflow-y: auto;">
-                                    @if (!SubEvents.Any())
+
+                            <div class="flex-grow-1">
+                                <div class="text-white-50 small fw-bold mb-2"><i class="bi bi-diagram-3 me-1"></i> ASSIGNED TO</div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @if(judge.SubEvents != null && judge.SubEvents.Any())
                                     {
-                                        <span class="text-white-50 small">No sub-events available.</span>
+                                        @foreach (var sub in judge.SubEvents)
+                                        {
+                                            <span class="badge bg-white bg-opacity-10 border border-white border-opacity-10 text-white shadow-sm px-2 py-2 rounded-3">@sub.Name</span>
+                                        }
                                     }
-                                    @foreach (var sub in SubEvents)
+                                    else
                                     {
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="sub_@sub.Id" checked="@selectedJudgeSubEventIds.Contains(sub.Id)" @onchange="@(e => ToggleJudgeSubEvent(sub.Id, e.Value))" />
-                                            <label class="form-check-label text-white" for="sub_@sub.Id">@sub.Name</label>
-                                        </div>
+                                        <span class="text-white-50 small fst-italic px-2 py-1 bg-black bg-opacity-25 rounded-3 border border-white border-opacity-10">None</span>
                                     }
                                 </div>
                             </div>
-                            <div class="d-flex gap-2 mt-4 pt-3 border-top border-white border-opacity-10">
-                                <button type="submit" class="btn liquid-btn w-100 text-white fw-bold">Save Judge</button>
-                                @if(currentJudge.Id != 0) { <button type="button" class="btn liquid-btn text-white-50" @onclick="ClearJudgeForm">Cancel</button> }
-                            </div>
-                        </form>
+                        </div>
                     </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Printable Credentials Slips (Hidden on screen, visible only on print) -->
+    <div class="d-none d-print-block w-100 px-4 pt-4">
+        <div class="text-center mb-5 pb-3" style="border-bottom: 2px solid #000;">
+            <h2 class="fw-bold mb-1" style="color: #000;">NAMCYA Tabulation</h2>
+            <h4 style="color: #555;">Official Judge Access Credentials</h4>
+        </div>
+
+        <div class="row row-cols-2 g-4">
+            @foreach (var judge in Judges)
+            {
+                <div class="col">
+                    <div class="print-slip">
+                        <div class="d-flex justify-content-between align-items-center pb-2 mb-3" style="border-bottom: 1px solid #ccc;">
+                            <h4 class="fw-bold mb-0" style="color: #000;">@judge.Name</h4>
+                            <span style="color: #666; font-size: 0.85rem;">ID: @judge.Id</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div style="color: #666; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.25rem;">ACCESS PIN</div>
+                            <div class="fs-2 fw-bold text-center rounded py-2 pin-box" style="letter-spacing: 0.5rem; border: 1px solid #ccc;">
+                                @judge.PinCode
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="color: #666; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.25rem;">ASSIGNED TO</div>
+                            <div class="fw-bold" style="color: #000; font-size: 0.9rem;">
+                                @if(judge.SubEvents != null && judge.SubEvents.Any())
+                                {
+                                    @string.Join(" • ", judge.SubEvents.Select(s => s.Name))
+                                }
+                                else
+                                {
+                                    <span style="font-style: italic; color: #888;">None</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <style>
+        /* Force pure white background and remove effects specifically for the printer */
+        @@media print {
+            html, body { background-color: #ffffff !important; color: #000000 !important; }
+            * { text-shadow: none !important; box-shadow: none !important; color: #000000 !important; }
+            .print-slip {
+                border: 2px dashed #999 !important;
+                border-radius: 12px !important;
+                padding: 1.5rem !important;
+                margin-bottom: 1rem !important;
+                page-break-inside: avoid;
+                background-color: #ffffff !important;
+            }
+            .pin-box { background-color: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+
+    <!-- Add/Edit Judge Modal -->
+    @if (showModal)
+    {
+        <div class="glass-modal-overlay" @onclick="CloseModal">
+            <div class="glass-modal p-4 p-md-5 d-flex flex-column" @onclick="() => {}" @onclick:stopPropagation="true">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-shrink-0">
+                    <h3 class="text-white fw-bold mb-0">@(currentJudge.Id == 0 ? "Add New Judge" : "Edit Judge")</h3>
+                    <button class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+                
+                <div class="overflow-y-auto pe-2 flex-grow-1">
+                    <form @onsubmit="SaveJudge" @onsubmit:preventDefault="true">
+                        <div class="mb-4">
+                            <label class="form-label text-white-50 fs-6 fw-bold mb-2"><i class="bi bi-person me-2"></i>Judge Name</label>
+                            <input type="text" class="form-control glass-input fs-5 text-white py-3 shadow-sm" @bind="currentJudge.Name" placeholder="e.g., Maestro John" required autofocus />
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label text-white-50 fs-6 fw-bold mb-0"><i class="bi bi-key me-2"></i>Access PIN</label>
+                                <button type="button" class="btn btn-sm text-info bg-transparent border-0 fw-bold p-0" @onclick="RegeneratePin" title="Generate New PIN">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> Regenerate
+                                </button>
+                            </div>
+                            <input type="text" class="form-control glass-input fs-4 text-center fw-bold text-info py-3 shadow-sm" style="letter-spacing: 0.5rem;" @bind="currentJudge.PinCode" maxlength="6" readonly />
+                            <div class="text-white-50 small mt-2 text-center">Judges will use this 6-digit PIN to securely log in.</div>
+                        </div>
+                        
+                        <div class="mb-5">
+                            <label class="form-label text-white-50 fs-6 fw-bold mb-2"><i class="bi bi-diagram-3 me-2"></i>Assign to Sub-Events</label>
+                            <div class="p-3 rounded-4 glass-input shadow-sm" style="max-height: 250px; overflow-y: auto;">
+                                @if (!SubEvents.Any())
+                                {
+                                    <div class="text-white-50 text-center py-3">No sub-events available. Create them in Events first.</div>
+                                }
+                                <div class="d-flex flex-column gap-2">
+                                    @foreach (var sub in SubEvents)
+                                    {
+                                        <label class="form-check p-2 rounded-3 mb-0 d-flex align-items-center transition-all cursor-pointer @(selectedJudgeSubEventIds.Contains(sub.Id) ? "bg-white bg-opacity-10 border border-white border-opacity-25" : "border border-transparent")" style="cursor: pointer;">
+                                            <input class="form-check-input glass-input ms-1 me-3 mt-0 fs-5" type="checkbox" checked="@selectedJudgeSubEventIds.Contains(sub.Id)" @onchange="@(e => ToggleJudgeSubEvent(sub.Id, e.Value))" />
+                                            <span class="text-white fw-bold">@sub.Name</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-3 pt-4 border-top border-light border-opacity-10 mt-4">
+                            <button type="button" class="btn btn-outline-light px-4 fw-bold" @onclick="CloseModal">Cancel</button>
+                            <button type="submit" class="btn liquid-btn px-5 fw-bold text-white">Save Judge</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
-    </div>
+    }
 }
 
 @code {
@@ -119,6 +219,9 @@
     
     private Judge currentJudge = new Judge { PinCode = GeneratePin() };
     private HashSet<int> selectedJudgeSubEventIds = new();
+
+    // Tracks the visibility of the Add/Edit modal
+    private bool showModal = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,11 +242,31 @@
 
     private static string GeneratePin() => new Random().Next(100000, 999999).ToString();
 
+    private async Task PrintJudges()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    private void OpenAddModal()
+    {
+        ClearJudgeForm();
+        showModal = true;
+    }
+
     private void EditJudge(Judge judge)
     {
         currentJudge = new Judge { Id = judge.Id, Name = judge.Name, PinCode = judge.PinCode };
         selectedJudgeSubEventIds = judge.SubEvents?.Select(s => s.Id).ToHashSet() ?? new HashSet<int>();
+        showModal = true;
     }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        ClearJudgeForm();
+    }
+
+    private void RegeneratePin() => currentJudge.PinCode = GeneratePin();
 
     private void ClearJudgeForm() { currentJudge = new Judge { PinCode = GeneratePin() }; selectedJudgeSubEventIds.Clear(); }
 
@@ -173,6 +296,7 @@
         }
         await DbContext.SaveChangesAsync();
         ClearJudgeForm();
+        showModal = false;
         await LoadData();
     }
 

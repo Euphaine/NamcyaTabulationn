@@ -101,6 +101,14 @@
                     </div>
                 }
 
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show mb-4">
+                        <strong>Notice:</strong> @ErrorMessage
+                        <button type="button" class="btn-close" @onclick="() => ErrorMessage = string.Empty"></button>
+                    </div>
+                }
+
                 @if (IsScoringLocked)
                 {
                     <div class="alert bg-warning bg-opacity-25 text-white border-0 d-flex align-items-center mb-4">
@@ -173,6 +181,10 @@
                                                     }
                                                 </tbody>
                                             </table>
+                                        </div>
+                                        <div class="mt-4 pt-3 border-top border-white border-opacity-10">
+                                            <label class="form-label text-white-50 fw-bold"><i class="bi bi-chat-left-text me-2"></i>Optional Comment / Feedback</label>
+                                            <textarea class="form-control glass-input text-white" @bind="CurrentComment" rows="3" placeholder="Leave a constructive comment for the contestant..." disabled="@IsScoringLocked"></textarea>
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center mt-4 pt-4 border-top border-white border-opacity-10">
                                             <span class="text-white-50 small">Auto-calculated upon submission.</span>
@@ -271,6 +283,7 @@
     public bool LoginError { get; set; } = false;
     public bool SaveSuccess { get; set; } = false;
     public bool IsScoringLocked { get; set; } = false;
+    public string ErrorMessage { get; set; } = string.Empty;
     private bool isSubmitting = false;
 
     public Judge? CurrentJudge { get; set; }
@@ -285,6 +298,7 @@
     public List<ScoreSheet> CurrentScores { get; set; } = new();
     
     public List<ContestantRecap> RecapList { get; set; } = new();
+    public string CurrentComment { get; set; } = string.Empty;
 
     public class ContestantRecap
     {
@@ -341,6 +355,7 @@
         Criteria.Clear();
         RecapList.Clear();
         CurrentScores.Clear();
+        CurrentComment = string.Empty;
     }
 
     public async Task OnSubEventChanged(ChangeEventArgs e)
@@ -390,14 +405,26 @@
 
     public async Task ToggleScoring(int contestantId)
     {
-        if (SelectedContestant?.Id == contestantId)
+        try
         {
-            SelectedContestant = null;
+            ErrorMessage = string.Empty;
+            if (SelectedContestant?.Id == contestantId)
+            {
+                SelectedContestant = null;
+                CurrentComment = string.Empty;
+            }
+            else
+            {
+                SelectedContestant = Contestants.FirstOrDefault(c => c.Id == contestantId);
+                await LoadCurrentScores();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            SelectedContestant = Contestants.FirstOrDefault(c => c.Id == contestantId);
-            await LoadCurrentScores();
+            ErrorMessage = "Could not load scoring sheet. Please try again.";
+            Console.WriteLine(ex.Message);
+            DbContext.ChangeTracker.Clear();
+            SelectedContestant = null; // Reset UI so it doesn't get stuck
         }
     }
 
@@ -405,7 +432,10 @@
     {
         if (SelectedContestant == null || CurrentJudge == null || SelectedCategory == null) return;
 
+        DbContext.ChangeTracker.Clear(); // Force clear stale tracking
+
         CurrentScores = await DbContext.ScoreSheets
+            .AsNoTracking()
             .Where(s => s.ContestantId == SelectedContestant.Id && s.JudgeId == CurrentJudge.Id)
             .ToListAsync();
 
@@ -422,6 +452,18 @@
                 });
             }
         }
+
+        try
+        {
+            var existingComment = await DbContext.JudgeComments
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.JudgeId == CurrentJudge.Id && c.ContestantId == SelectedContestant.Id);
+            CurrentComment = existingComment?.Comment ?? string.Empty;
+        }
+        catch
+        {
+            CurrentComment = string.Empty; // Fail safely if the table doesn't exist
+        }
     }
 
     public async Task SaveScores()
@@ -429,8 +471,14 @@
         if (SelectedContestant == null || CurrentJudge == null || IsScoringLocked || isSubmitting) return;
 
         isSubmitting = true;
+        ErrorMessage = string.Empty;
         try
         {
+            // Fetch currently tracked instances from the database
+            var trackedScores = await DbContext.ScoreSheets
+                .Where(s => s.ContestantId == SelectedContestant.Id && s.JudgeId == CurrentJudge.Id)
+                .ToListAsync();
+
             foreach (var score in CurrentScores)
             {
                 // Hard backend validation to prevent frontend manipulation or glitches
@@ -441,22 +489,66 @@
                 // Force exact 2-decimal precision to prevent Database truncation errors
                 score.Points = Math.Round(score.Points, 2, MidpointRounding.AwayFromZero);
 
-                if (score.Id == 0) {
-                    DbContext.ScoreSheets.Add(score);
+                var tracked = trackedScores.FirstOrDefault(s => s.CriterionId == score.CriterionId);
+                if (tracked != null)
+                {
+                    tracked.Points = score.Points;
                 }
                 else
                 {
-                    DbContext.ScoreSheets.Update(score);
+                    DbContext.ScoreSheets.Add(new ScoreSheet
+                    {
+                        JudgeId = CurrentJudge.Id,
+                        ContestantId = SelectedContestant.Id,
+                        CriterionId = score.CriterionId,
+                        Points = score.Points
+                    });
                 }
             }
 
-            await DbContext.SaveChangesAsync();
+            await DbContext.SaveChangesAsync(); // 1. Save scores safely first!
             
+            try
+            {
+                // 2. Attempt to save the comment
+                var existingComment = await DbContext.JudgeComments
+                    .FirstOrDefaultAsync(c => c.JudgeId == CurrentJudge.Id && c.ContestantId == SelectedContestant.Id);
+    
+                if (!string.IsNullOrWhiteSpace(CurrentComment))
+                {
+                    if (existingComment != null)
+                    {
+                        existingComment.Comment = CurrentComment;
+                    }
+                    else
+                    {
+                        DbContext.JudgeComments.Add(new JudgeComment { JudgeId = CurrentJudge.Id, ContestantId = SelectedContestant.Id, Comment = CurrentComment });
+                    }
+                }
+                else 
+                {
+                    if (existingComment != null) DbContext.JudgeComments.Remove(existingComment);
+                }
+    
+                await DbContext.SaveChangesAsync();
+            }
+            catch
+            {
+                Console.WriteLine("Warning: Comments table missing. Scores saved, but comments skipped.");
+                DbContext.ChangeTracker.Clear();
+            }
+
             if (SelectedCategory != null) ScoreBroadcaster.BroadcastScoreUpdate(SelectedCategory.Id);
 
             SaveSuccess = true;
             SelectedContestant = null; 
             await LoadRecapList();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "An error occurred while saving your scores. Please try again.";
+            Console.WriteLine($"Error saving scores: {ex.Message}");
+            DbContext.ChangeTracker.Clear();
         }
         finally
         {

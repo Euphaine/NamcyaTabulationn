@@ -16,5 +16,6 @@ namespace NamcyaTabulation.Data
         public DbSet<ScoreSheet> ScoreSheets { get; set; }
         public DbSet<Organizer> Organizers { get; set; }
         public DbSet<SystemSetting> SystemSettings { get; set; }
+        public DbSet<JudgeComment> JudgeComments { get; set; }
     }
 }

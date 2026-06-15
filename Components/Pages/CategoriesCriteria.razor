@@ -1,5 +1,6 @@
 @page "/admin/categories-criteria"
 @using Microsoft.AspNetCore.Components.Web
+@using System.Linq
 @using Microsoft.EntityFrameworkCore
 @using NamcyaTabulation.Data
 @using NamcyaTabulation.Models
@@ -12,32 +13,33 @@
 <PageTitle>Manage Categories & Criteria</PageTitle>
 
 <div class="container mt-4 fade-in">
-    <h2 class="mb-4 fw-bold">Categories & Criteria</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Categories & Criteria</h2>
+        <a href="/admin-panel" class="btn btn-outline-light fw-bold"><i class="bi bi-arrow-left me-1"></i> Back</a>
+    </div>
 
-    <!-- Selection Card -->
-    <div class="card shadow-sm border-0 mb-4 rounded-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Select Event</label>
-                    <select class="form-select" @onchange="OnEventChanged">
-                        <option value="0">-- Select Event --</option>
-                        @foreach (var ev in Events)
-                        {
-                            <option value="@ev.Id">@ev.Name</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Select Sub-Event</label>
-                    <select class="form-select" @onchange="OnSubEventChanged" disabled="@(SelectedEvent == null)">
-                        <option value="0">-- Select Sub-Event --</option>
-                        @foreach (var sub in SubEvents)
-                        {
-                            <option value="@sub.Id">@sub.Name</option>
-                        }
-                    </select>
-                </div>
+    <!-- Glass Selection Panel -->
+    <div class="glass-panel p-4 mb-5 rounded-4 shadow-sm hover-zoom">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label class="form-label text-white-50 fs-6">Select Main Event</label>
+                <select class="form-select glass-input fs-5 py-3 text-white" @onchange="OnEventChanged">
+                    <option value="0">-- Select Event --</option>
+                    @foreach (var ev in Events)
+                    {
+                        <option value="@ev.Id">@ev.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-white-50 fs-6">Select Sub-Event</label>
+                <select class="form-select glass-input fs-5 py-3 text-white" @onchange="OnSubEventChanged" disabled="@(SelectedEvent == null)">
+                    <option value="0">-- Select Sub-Event --</option>
+                    @foreach (var sub in SubEvents)
+                    {
+                        <option value="@sub.Id">@sub.Name</option>
+                    }
+                </select>
             </div>
         </div>
     </div>
@@ -46,120 +48,155 @@
     {
         <div class="row g-4">
             <!-- Categories Panel -->
-            <div class="col-md-5">
-                <div class="card shadow-sm border-0 rounded-4 h-100">
-                    <div class="card-header bg-primary text-white p-3">
-                        <h5 class="mb-0 fw-bold"><i class="bi bi-tags me-2"></i> Categories</h5>
+            <div class="col-lg-5">
+                <div class="glass-panel p-4 h-100 d-flex flex-column hover-zoom">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold text-white mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);"><i class="bi bi-tags-fill me-2"></i> Categories</h4>
+                        <button class="btn btn-sm liquid-btn text-white fw-bold shadow-sm" @onclick="() => showCategoryModal = true">
+                            <i class="bi bi-plus-lg me-1"></i> Add
+                        </button>
                     </div>
-                    <div class="card-body">
-                        <form @onsubmit="SaveCategory" class="mb-4 d-flex gap-2">
-                            <input type="text" class="form-control" placeholder="New Category Name" @bind="newCategory.Name" required />
-                            <button type="submit" class="btn btn-primary fw-bold">Add</button>
-                        </form>
-                        
-                        <ul class="list-group list-group-flush">
-                            @if (!Categories.Any())
-                            {
-                                <li class="list-group-item text-muted">No categories added yet.</li>
-                            }
-                            @foreach (var cat in Categories)
-                            {
-                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                    <span>@cat.Name</span>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategory(cat)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </li>
-                            }
-                        </ul>
+                    
+                    <hr class="border-light border-opacity-10 mt-0 mb-4" />
+                    
+                    @if (!Categories.Any())
+                    {
+                        <div class="text-white-50 text-center p-4 bg-black bg-opacity-25 rounded-4 border border-light border-opacity-10 mt-2">
+                            No categories added yet.
+                        </div>
+                    }
+                    <div class="d-flex flex-column gap-3 flex-grow-1">
+                        @foreach (var cat in Categories)
+                        {
+                            <div class="bg-white bg-opacity-10 border border-light border-opacity-10 rounded-3 p-3 d-flex justify-content-between align-items-center shadow-sm transition-all" style="backdrop-filter: blur(5px);">
+                                <strong class="text-white fs-5" style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">@cat.Name</strong>
+                                <button class="btn btn-sm text-danger bg-transparent border-0" @onclick="() => DeleteCategory(cat)" title="Delete Category"><i class="bi bi-trash fs-4"></i></button>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
 
             <!-- Criteria Panel -->
-            <div class="col-md-7">
-                <div class="card shadow-sm border-0 rounded-4 h-100">
-                    <div class="card-header bg-success text-white p-3 d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 fw-bold"><i class="bi bi-list-check me-2"></i> Criteria</h5>
-                        <span class="badge bg-light text-success fs-6 shadow-sm">Total: @Criteria.Sum(c => c.MaxScore)%</span>
+            <div class="col-lg-7">
+                <div class="glass-panel p-4 h-100 d-flex flex-column hover-zoom">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <h4 class="fw-bold text-white mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);"><i class="bi bi-list-check me-2"></i> Criteria</h4>
+                            <span class="badge @(Criteria.Sum(c => c.MaxScore) == 100 ? "bg-success bg-opacity-75" : "bg-warning text-dark") fs-6 shadow-sm px-3 py-2 rounded-pill">Total: @Criteria.Sum(c => c.MaxScore)%</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm text-info fw-bold bg-transparent border-0" @onclick="() => showImportModal = true" title="Clone from another Sub-Event">
+                                <i class="bi bi-box-arrow-in-down fs-3"></i>
+                            </button>
+                            <button class="btn btn-sm liquid-btn text-white fw-bold shadow-sm" @onclick="() => showCriterionModal = true">
+                                <i class="bi bi-plus-lg me-1"></i> Add
+                            </button>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <!-- Import Criteria Tool -->
-                        <div class="p-3 bg-light rounded-3 mb-4 border">
-                            <label class="form-label fw-bold text-secondary mb-2"><i class="bi bi-box-arrow-in-down me-1"></i> Import Criteria from another Sub-Event</label>
-                            <div class="input-group">
-                                <select class="form-select" @bind="importSubEventId">
-                                    <option value="0">-- Select Source Sub-Event --</option>
-                                    @foreach (var ev in Events)
-                                    {
-                                        <optgroup label="@ev.Name">
-                                            @foreach (var sub in AllSubEvents.Where(s => s.EventId == ev.Id && s.Id != SelectedSubEvent.Id))
-                                            {
-                                                <option value="@sub.Id">@sub.Name</option>
-                                            }
-                                        </optgroup>
-                                    }
-                                </select>
-                                <button class="btn btn-outline-success fw-bold" @onclick="ImportCriteria" disabled="@(importSubEventId == 0)">
-                                    <i class="bi bi-copy me-1"></i> Clone
-                                </button>
-                            </div>
+                    
+                    <hr class="border-light border-opacity-10 mt-0 mb-4" />
+                    
+                    @if (!Criteria.Any())
+                    {
+                        <div class="text-white-50 text-center p-4 bg-black bg-opacity-25 rounded-4 border border-light border-opacity-10 mt-2">
+                            No criteria defined yet. Click the import button or add manually.
                         </div>
-
-                        <form @onsubmit="SaveCriterion" class="mb-4 row g-2">
-                            <div class="col-sm-7">
-                                <input type="text" class="form-control" placeholder="Criterion Name (e.g. Musicality)" @bind="newCriterion.Name" required />
-                            </div>
-                            <div class="col-sm-3">
-                                <input type="number" class="form-control" placeholder="Max" @bind="newCriterion.MaxScore" min="1" step="0.1" required />
-                            </div>
-                            <div class="col-sm-2">
-                                <button type="submit" class="btn btn-success w-100 fw-bold">Add</button>
-                            </div>
-                        </form>
-
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th class="text-center">Max Score</th>
-                                        <th class="text-end">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @if (!Criteria.Any())
-                                    {
-                                        <tr><td colspan="3" class="text-muted text-center py-3">No criteria defined yet. Use the tool above to clone!</td></tr>
-                                    }
-                                    @foreach (var crit in Criteria)
-                                    {
-                                        <tr>
-                                            <td class="fw-bold">@crit.Name</td>
-                                            <td class="text-center">
-                                                <span class="badge bg-light text-dark border px-3 py-2">@crit.MaxScore</span>
-                                            </td>
-                                            <td class="text-end">
-                                                <button class="btn btn-sm btn-outline-danger shadow-sm" @onclick="() => DeleteCriterion(crit)">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        @if (Criteria.Sum(c => c.MaxScore) != 100 && Criteria.Any())
+                    }
+                    <div class="d-flex flex-column gap-3 flex-grow-1">
+                        @foreach (var crit in Criteria)
                         {
-                            <div class="alert alert-warning py-2 mb-0 mt-2 d-flex align-items-center">
-                                <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i> 
-                                <div>
-                                    <strong>Warning:</strong> Total max score is currently @Criteria.Sum(c => c.MaxScore). For a standard 100% grading system, adjust the values above!
+                            <div class="bg-white bg-opacity-10 border border-light border-opacity-10 rounded-3 p-3 d-flex justify-content-between align-items-center shadow-sm transition-all" style="backdrop-filter: blur(5px);">
+                                <strong class="text-white fs-5" style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">@crit.Name</strong>
+                                <div class="d-flex align-items-center gap-3">
+                                    <span class="badge bg-white bg-opacity-25 text-white fs-6 px-3 py-2 border border-light border-opacity-10 shadow-sm rounded-3">Max: @crit.MaxScore</span>
+                                    <button class="btn btn-sm text-danger bg-transparent border-0 p-0" @onclick="() => DeleteCriterion(crit)" title="Delete Criterion"><i class="bi bi-trash fs-4"></i></button>
                                 </div>
                             </div>
                         }
                     </div>
+                    
+                    @if (Criteria.Sum(c => c.MaxScore) != 100 && Criteria.Any())
+                    {
+                        <div class="alert bg-warning bg-opacity-25 text-white border-0 py-3 mt-4 mb-0 d-flex align-items-center rounded-4 fade-in">
+                            <i class="bi bi-exclamation-triangle-fill fs-3 me-3 text-warning"></i> 
+                            <div>
+                                <h6 class="mb-0 fw-bold">Warning: Score Mismatch</h6>
+                                <small class="text-white-50">Total max score is currently @Criteria.Sum(c => c.MaxScore). For a standard grading system, it should perfectly total 100.</small>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Modals -->
+    @if (showCategoryModal)
+    {
+        <div class="glass-modal-overlay" @onclick="CloseModals">
+            <div class="glass-modal p-4 p-md-5" @onclick="() => {}" @onclick:stopPropagation="true">
+                <h3 class="text-white fw-bold mb-4">Add New Category</h3>
+                <form @onsubmit="SaveCategory" @onsubmit:preventDefault="true">
+                    <div class="mb-5">
+                        <label class="form-label text-white-50 fs-6">Category Name</label>
+                        <input type="text" class="form-control glass-input fs-5 text-white py-3" @bind="newCategory.Name" placeholder="e.g., Solo Performance" required autofocus />
+                    </div>
+                    <div class="d-flex justify-content-end gap-3 mt-4 pt-2 border-top border-light border-opacity-10">
+                        <button type="button" class="btn btn-outline-light px-4 fw-bold" @onclick="CloseModals">Cancel</button>
+                        <button type="submit" class="btn liquid-btn px-5 fw-bold text-white">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
+    @if (showCriterionModal)
+    {
+        <div class="glass-modal-overlay" @onclick="CloseModals">
+            <div class="glass-modal p-4 p-md-5" @onclick="() => {}" @onclick:stopPropagation="true">
+                <h3 class="text-white fw-bold mb-4">Add Criterion</h3>
+                <form @onsubmit="SaveCriterion" @onsubmit:preventDefault="true">
+                    <div class="mb-4">
+                        <label class="form-label text-white-50 fs-6">Criterion Name</label>
+                        <input type="text" class="form-control glass-input fs-5 text-white py-3" @bind="newCriterion.Name" placeholder="e.g., Musicality" required autofocus />
+                    </div>
+                    <div class="mb-5">
+                        <label class="form-label text-white-50 fs-6">Max Score (%)</label>
+                        <input type="number" class="form-control glass-input fs-5 text-white py-3" @bind="newCriterion.MaxScore" placeholder="e.g., 40" min="1" step="0.1" required />
+                    </div>
+                    <div class="d-flex justify-content-end gap-3 mt-4 pt-4 border-top border-light border-opacity-10">
+                        <button type="button" class="btn btn-outline-light px-4 fw-bold" @onclick="CloseModals">Cancel</button>
+                        <button type="submit" class="btn liquid-btn px-5 fw-bold text-white">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
+    @if (showImportModal)
+    {
+        <div class="glass-modal-overlay" @onclick="CloseModals">
+            <div class="glass-modal p-4 p-md-5" @onclick="() => {}" @onclick:stopPropagation="true">
+                <h3 class="text-white fw-bold mb-4">Import Criteria</h3>
+                <div class="mb-5">
+                    <label class="form-label text-white-50 fs-6">Select Source Sub-Event</label>
+                    <select class="form-select glass-input fs-5 text-white py-3" @bind="importSubEventId">
+                        <option value="0">-- Select Source --</option>
+                        @foreach (var ev in Events)
+                        {
+                            <optgroup label="@ev.Name" style="background: #0f172a; color: #fff;">
+                                @foreach (var sub in AllSubEvents.Where(s => s.EventId == ev.Id && s.Id != (SelectedSubEvent?.Id ?? -1)))
+                                {
+                                    <option value="@sub.Id" style="background: #1e293b; color: #fff;">@sub.Name</option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                </div>
+                <div class="d-flex justify-content-end gap-3 mt-4 pt-2 border-top border-light border-opacity-10">
+                    <button type="button" class="btn btn-outline-light px-4 fw-bold" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn liquid-btn px-5 fw-bold text-white" @onclick="ImportCriteria" disabled="@(importSubEventId == 0)">Clone</button>
                 </div>
             </div>
         </div>
@@ -180,6 +217,17 @@
     private Criterion newCriterion = new();
 
     private int importSubEventId = 0;
+
+    private bool showCategoryModal = false;
+    private bool showCriterionModal = false;
+    private bool showImportModal = false;
+
+    private void CloseModals()
+    {
+        showCategoryModal = false;
+        showCriterionModal = false;
+        showImportModal = false;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -246,6 +294,7 @@
         await DbContext.SaveChangesAsync();
         
         newCategory = new Category();
+        CloseModals();
         await LoadSubEventData();
     }
 
@@ -269,6 +318,7 @@
         await DbContext.SaveChangesAsync();
         
         newCriterion = new Criterion();
+        CloseModals();
         await LoadSubEventData();
     }
 
@@ -310,6 +360,7 @@
 
         await DbContext.SaveChangesAsync();
         await LoadSubEventData();
+        CloseModals();
         await JS.InvokeVoidAsync("alert", "Criteria cloned successfully! You can now freely adjust their Max Scores.");
     }
 }
