@@ -1,240 +1,332 @@
 ﻿@inherits LayoutComponentBase
 @implements IDisposable
-@inject IJSRuntime JS
 @inject NavigationManager NavManager
 
 <style>
-    /* Force transparency so the WebGL shader can be seen entirely */
     .main-layout-container {
-        background: transparent !important;
-        background-image: none !important;
+        background-color: #05080f !important;
+        background-image: url('/images/display_banner.png') !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-attachment: fixed !important;
+    }
+    .main-layout-container::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        /* The "Google" Mesh Gradient tracking the cursor slightly */
+        background: 
+            radial-gradient(900px circle at calc(20vw + (var(--mouse-x, 50vw) - 50vw) * 0.15) calc(20vh + (var(--mouse-y, 50vh) - 50vh) * 0.15), rgba(66, 133, 244, 0.7) 0%, transparent 60%),
+            radial-gradient(900px circle at calc(80vw + (var(--mouse-x, 50vw) - 50vw) * -0.1) calc(30vh + (var(--mouse-y, 50vh) - 50vh) * -0.1), rgba(155, 81, 224, 0.7) 0%, transparent 60%),
+            radial-gradient(900px circle at calc(30vw + (var(--mouse-x, 50vw) - 50vw) * 0.1) calc(80vh + (var(--mouse-y, 50vh) - 50vh) * 0.1), rgba(234, 67, 53, 0.7) 0%, transparent 60%),
+            radial-gradient(900px circle at calc(70vw + (var(--mouse-x, 50vw) - 50vw) * -0.15) calc(90vh + (var(--mouse-y, 50vh) - 50vh) * -0.15), rgba(251, 188, 5, 0.6) 0%, transparent 60%),
+            rgba(10, 10, 15, 0.85); /* Semi-transparent base to reveal the Padayaw banner! */
+        z-index: 0;
+        pointer-events: none;
     }
 
-    /* --- Global Approachability (Touch-Friendly UI) --- */
+    /* --- High Contrast Typography --- */
+    .text-white-50 {
+        color: rgba(255, 255, 255, 0.75) !important; /* Boosted from 50% for vastly better readability on dark glass */
+    }
+
     .btn, .liquid-btn {
         padding: 0.65rem 1.5rem !important;
         font-weight: 600;
-        border-radius: 0.5rem !important;
+        border-radius: 0.375rem !important;
     }
     .form-control, .form-select, .glass-input {
-        padding: 0.8rem 1.25rem !important;
-        border-radius: 0.5rem !important;
+        padding: 0.75rem 1rem !important;
+        border-radius: 0.375rem !important;
     }
 
-    /* Enhance standard HTML dropdown options to match the dark glass theme */
-    select.glass-input option {
-        background-color: #0f172a !important; /* Deep Navy */
-        color: #ffffff !important;
-        padding: 12px;
-    }
-
-    /* --- Custom Dropdown Arrow & Recessed Look --- */
-    select.glass-input {
-        background-color: rgba(0, 0, 0, 0.2) !important; /* Slightly darker depth for dropdowns */
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
-        background-size: 16px 12px !important;
-        background-repeat: no-repeat !important;
-        background-position: right 1rem center !important;
-        cursor: pointer;
-    }
-
-    /* --- Clear Glass Overrides for legacy app.css classes --- */
+    /* --- Premium Apple Glass Buttons --- */
     .liquid-btn {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        color: #fff !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05)) !important;
+        backdrop-filter: blur(10px) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.5) !important;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.3) !important;
+        transition: all 0.2s ease-in-out;
+        border-radius: 1rem !important;
     }
     .liquid-btn:hover {
-        background: rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.1)) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(0,0,0,0.3), inset 0 1px 3px rgba(255,255,255,0.5) !important;
     }
-    .icon-glass {
-        background: transparent !important;
-        background-image: none !important;
-        border: 1px solid rgba(255, 255, 255, 0.02) !important;
-        box-shadow: none !important;
+    .liquid-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
     }
 
-    /* --- Override legacy app.css glass-panel borders/shadows --- */
+    /* --- Premium Dark Glass Panels --- */
     .glass-panel {
-        background: transparent !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
+        background: linear-gradient(135deg, rgba(15, 15, 20, 0.9), rgba(0, 0, 0, 0.75)) padding-box,
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.05)) border-box !important;
+        backdrop-filter: blur(40px) saturate(250%) !important; /* Huge saturation pulls the color through */
+        -webkit-backdrop-filter: blur(40px) saturate(250%) !important;
+        border: 1px solid transparent !important;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 2px 10px rgba(255, 255, 255, 0.05) !important;
+        border-radius: 1.5rem;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
-    .glass-input {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        color: #fff !important;
-    }
-    .glass-input:focus {
-        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05) !important;
-        border-color: rgba(255, 255, 255, 0.2) !important;
-        background-color: rgba(255, 255, 255, 0.1) !important;
-    }
-
-    /* --- Glass Switch Toggle Visibility --- */
-    .form-check-input.glass-input:checked {
-        background-color: #00AEEF !important; /* Vibrant Cyan */
-        border-color: #00AEEF !important;
-        box-shadow: 0 0 15px rgba(0, 174, 239, 0.6) !important;
-    }
-
-    /* --- Force Refraction on ALL Glass Elements Globally --- */
-    .glass-panel, .liquid-btn, .glass-card, .icon-glass {
-        position: relative;
-        z-index: 1;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-    .glass-panel.hover-zoom:hover, .glass-card:hover {
+    .glass-panel.hover-zoom:hover {
         transform: translateY(-5px) scale(1.02);
-        box-shadow: 
-            0 25px 45px rgba(0, 0, 0, 0.3) !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), inset 0 2px 15px rgba(255, 255, 255, 0.1) !important;
         z-index: 10;
     }
-    .glass-panel::before, .liquid-btn::before, .glass-card::before, .icon-glass::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        backdrop-filter: blur(12px) saturate(150%);
-        -webkit-backdrop-filter: blur(12px) saturate(150%);
-        filter: url(#liquid-refraction);
-        background: rgba(255, 255, 255, 0.02);
-        z-index: -1;
-        pointer-events: none;
+
+    /* --- Premium Dark Glass Inputs --- */
+    .glass-input {
+        /* Glassmorphism Option: semi-transparent white */
+        background: rgba(255, 255, 255, 0.15) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+        caret-color: #ffffff !important;
+        border-radius: 1rem !important;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+    .glass-input::placeholder { color: rgba(255, 255, 255, 0.7) !important; }
+    .glass-input:focus {
+        background: rgba(255, 255, 255, 0.25) !important;
+        outline: 2px solid rgba(255, 255, 255, 0.6) !important;
+        outline-offset: 2px;
     }
 
-    .liquid-backdrop {
-        backdrop-filter: blur(16px) saturate(200%) contrast(1.1);
-        -webkit-backdrop-filter: blur(16px) saturate(200%) contrast(1.1);
-        /* Genuine SVG Refraction Distortion */
-        filter: url(#liquid-refraction);
-        border-radius: inherit;
+    /* Fix standard dropdown options breaking the dark theme */
+    select.glass-input option, select.apple-glass-input option {
+        background-color: #0f0f14 !important;
+        color: #ffffff !important;
+        font-weight: 500;
+        padding: 10px;
+    }
+    
+    /* Fix the invisible dropdown arrow icon for Bootstrap form-select in dark mode */
+    .form-select.glass-input, .form-select.apple-glass-input {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+        background-repeat: no-repeat !important;
+        background-position: right .75rem center !important;
+        background-size: 16px 12px !important;
     }
 
-    /* --- 3D Liquid Glass Tables with Refraction --- */
-    .table-responsive {
-        overflow: visible !important; /* Prevents tooltips from being clipped by the table container */
+    .form-check-input.glass-input:checked {
+        background-color: #4285F4 !important;
+        border-color: #4285F4 !important;
+        box-shadow: 0 0 15px rgba(66, 133, 244, 0.6) !important;
     }
+
+    /* --- Dark Glass Tables --- */
     .glass-table {
         border-collapse: separate !important;
-        border-spacing: 0 8px !important;
-        background: transparent !important;
+        border-spacing: 0 4px !important;
+        background-color: transparent !important;
     }
     .glass-table thead th {
-        background: rgba(0, 0, 0, 0.2) !important;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background: rgba(0, 0, 0, 0.6) !important;
         border: none !important;
-        color: #fff !important;
+        color: #ffffff !important;
         text-transform: uppercase;
         letter-spacing: 1px;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         padding: 1rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
     }
-    .glass-table thead th:first-child { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
-    .glass-table thead th:last-child { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
     
-    .glass-table thead {
-        position: relative;
-        z-index: 1;
-    }
-    .glass-table tbody {
-        position: relative;
-        z-index: 10; /* Forces the body (and tooltips) to render ABOVE the blurred table header */
-    }
     .glass-table tbody tr {
-        background: rgba(255, 255, 255, 0.02) !important;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        backdrop-filter: blur(24px) saturate(200%) !important;
+        -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4) !important;
+        transition: all 0.3s ease;
+        color: #ffffff !important;
+        border-radius: 0.5rem;
     }
     .glass-table tbody tr:hover {
-        transform: scale(1.02);
-        background: rgba(255, 255, 255, 0.05) !important;
-        box-shadow: 
-            0 15px 35px rgba(0, 0, 0, 0.2) !important;
-        position: relative;
-        z-index: 9999;
+        background: rgba(0, 0, 0, 0.8) !important;
+        transform: scale(1.01);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6) !important;
     }
     .glass-table td { 
         border: none !important; 
-        background: transparent !important; 
+        background-color: transparent !important; 
         padding: 1rem !important; 
         vertical-align: middle; 
-        position: relative;
-        z-index: 1;
     }
-    /* Apply refraction safely to table cells without distorting text */
-    .glass-table tbody td::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        backdrop-filter: blur(10px) saturate(150%);
-        -webkit-backdrop-filter: blur(10px) saturate(150%);
-        z-index: -1;
-        pointer-events: none;
-    }
-    .glass-table tbody td:first-child { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
-    .glass-table tbody td:first-child::before { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
-    .glass-table tbody td:last-child { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
-    .glass-table tbody td:last-child::before { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
+    .glass-table tbody td:first-child { border-top-left-radius: 0.5rem; border-bottom-left-radius: 0.5rem; }
+    .glass-table tbody td:last-child { border-top-right-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
+    .glass-table thead th:first-child { border-top-left-radius: 0.5rem; border-bottom-left-radius: 0.5rem; }
+    .glass-table thead th:last-child { border-top-right-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
 
-    /* --- Judge Dashboard Specific Glass Styles --- */
+    /* --- Dark Glass List Items --- */
     .contestant-list-item {
-        background: transparent !important;
-        color: #f8f9fa !important;
-        border-color: rgba(255, 255, 255, 0.1) !important;
+        background: rgba(0, 0, 0, 0.5) padding-box,
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0)) border-box !important;
+        color: #ffffff !important;
+        border: 1px solid transparent !important;
         padding: 1rem 1.5rem;
-        transition: all 0.2s ease-in-out;
-        position: relative;
-        z-index: 1;
+        border-radius: 1rem !important;
+        margin-bottom: 0.5rem;
+        box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4) !important;
+        backdrop-filter: blur(24px) saturate(200%) !important;
+        -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+        transition: all 0.3s ease;
     }
-    .contestant-list-item::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        z-index: -1;
-        opacity: 0;
-        transition: opacity 0.3s;
-        pointer-events: none;
+    .contestant-list-item:hover { 
+        background: rgba(0, 0, 0, 0.7) padding-box,
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1)) border-box !important;
+        transform: translateX(5px);
     }
-    .contestant-list-item:hover { background: rgba(255, 255, 255, 0.1) !important; transform: translateX(5px); }
-    .contestant-list-item:hover::before { opacity: 1; }
-    .contestant-list-item.active { background: rgba(255, 255, 255, 0.1) !important; border-left: 4px solid #00AEEF; transform: translateX(0); box-shadow: inset 5px 0 15px rgba(0,0,0,0.2); }
-    .contestant-list-item.active::before { opacity: 1; }
+    .contestant-list-item.active { 
+        background: rgba(0, 0, 0, 0.8) padding-box,
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.2)) border-box !important;
+        border-left: 4px solid #4285F4 !important;
+        color: #ffffff !important; 
+        transform: translateX(0) !important; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+    }
     .contestant-list-item .bi-check-circle-fill { opacity: 0.8; }
 
-    /* --- Global Morph Page Transition --- */
-    .page-transition {
-        animation: morphPage 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-        transform-origin: top center;
-        will-change: transform, opacity, filter;
+    /* --- 2026 Google AI Gradient Aesthetic Icons --- */
+    .icon-gradient-core {
+        background: linear-gradient(135deg, #4285F4, #9B51E0, #EA4335, #FBBC05);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: inline-block;
     }
-    @@keyframes morphPage {
-        0% {
-            opacity: 0;
-            transform: scale(0.96) translateY(15px);
-            filter: blur(8px);
-        }
-        100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-            filter: blur(0px);
+    .icon-gradient-blue {
+        background: linear-gradient(135deg, #4285F4, #9B51E0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: inline-block;
+    }
+    .icon-gradient-purple {
+        background: linear-gradient(135deg, #9B51E0, #EA4335);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: inline-block;
+    }
+    .icon-gradient-amber {
+        background: linear-gradient(135deg, #EA4335, #FBBC05);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: inline-block;
+    }
+    .icon-gradient-green {
+        background: linear-gradient(135deg, #4285F4, #FBBC05);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: inline-block;
+    }
+
+    .page-transition {
+        animation: none;
+    }
+
+    /* --- Apple Glass Shared Login Styles --- */
+    .apple-glass-login {
+        background: linear-gradient(135deg, rgba(15, 15, 20, 0.95), rgba(0, 0, 0, 0.8)) padding-box,
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)) border-box !important;
+        backdrop-filter: blur(40px) saturate(250%) !important;
+        -webkit-backdrop-filter: blur(40px) saturate(250%) !important;
+        border-radius: 2rem !important;
+        border: 1px solid transparent !important;
+        box-shadow: 
+            0 25px 50px rgba(0, 0, 0, 0.4),
+            inset 0 4px 15px rgba(255, 255, 255, 0.5),
+            inset 0 -4px 15px rgba(255, 255, 255, 0.1) !important;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .apple-glass-login::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -150%;
+        width: 100%; height: 100%;
+        background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0) 100%);
+        transform: skewX(-25deg);
+        animation: apple-liquid-shine 8s infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @@keyframes apple-liquid-shine {
+        0% { left: -150%; }
+        20% { left: 150%; }
+        100% { left: 150%; }
+    }
+
+    .apple-glass-input {
+        /* Glassmorphism Option: semi-transparent white */
+        background: rgba(255, 255, 255, 0.15) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+        caret-color: #ffffff !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.6) !important;
+        border-radius: 1rem !important;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.5px;
+    }
+    .apple-glass-input::placeholder { color: rgba(255, 255, 255, 0.7) !important; text-shadow: none !important; }
+    .apple-glass-input:focus {
+        background: rgba(255, 255, 255, 0.25) !important;
+        outline: 2px solid rgba(255, 255, 255, 0.6) !important;
+        outline-offset: 2px;
+    }
+
+    /* Fix for browser autofill making inputs solid white and hiding the white text */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active,
+    textarea:-webkit-autofill,
+    textarea:-webkit-autofill:hover,
+    textarea:-webkit-autofill:focus,
+    textarea:-webkit-autofill:active {
+        -webkit-text-fill-color: #ffffff !important;
+        -webkit-box-shadow: 0 0 0px 1000px #0a0a0f inset !important;
+        box-shadow: 0 0 0px 1000px #0a0a0f inset !important;
+        caret-color: #ffffff !important;
+    }
+
+    /* --- Cross-Browser Fallback for Unsupported Glassmorphism --- */
+    @@supports not (backdrop-filter: blur(10px)) {
+        .glass-panel, .apple-glass-login, .glass-input, .apple-glass-input, .glass-table tbody tr, .contestant-list-item {
+            background: rgba(20, 20, 25, 0.98) !important;
         }
     }
 
     /* --- Formal Document Print Styles --- */
     @@media print {
-        @@page { size: auto; margin: 0.75in; }
-        html, body, .main-layout-container, .main-content {
+        @@page { size: auto; margin: 0; } /* Removes the browser's default URL/Date header and footer */
+        html, body {
+            background: #ffffff !important;
+            padding: 0.25in 0.5in 0.5in 0.5in !important; /* Shift content up by reducing top padding */
+        }
+        .main-layout-container, .main-content {
             background: #ffffff !important;
             color: #000000 !important;
             font-size: 12pt !important;
+            min-height: 0 !important; /* Prevents forcing an empty 2nd page */
         }
-        #shader-bg-container, svg[aria-hidden="true"] {
+        /* Strip excessive Bootstrap margins/padding at the top of the page */
+        .mt-4, .mt-5, .pt-4, .pt-5, .my-4, .my-5, .py-4, .py-5 {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+        .main-layout-container::before { display: none !important; } /* Removes the dark gradient background causing colored pages */
+        .cave-background, svg[aria-hidden="true"], #blazor-error-ui {
             display: none !important;
         }
         * {
@@ -251,17 +343,29 @@
             padding: 0 !important;
             background: transparent !important;
         }
+        /* Strip all UI gradients and force solid black text */
+        .icon-gradient-core, .icon-gradient-blue, .icon-gradient-purple, .icon-gradient-amber, .icon-gradient-green {
+            background: none !important;
+            -webkit-text-fill-color: #000000 !important;
+            color: #000000 !important;
+        }
+        .text-white, .text-white-50, .text-muted, h1, h2, h3, h4, h5, h6, p, span {
+            color: #000000 !important;
+            text-shadow: none !important;
+        }
         /* Formal Table Styling */
         .glass-table {
             border-collapse: collapse !important;
             border-spacing: 0 !important;
             width: 100% !important;
             margin-top: 1rem !important;
+            border: 2px solid #000000 !important;
+            background-color: #ffffff !important;
         }
         .glass-table th, .glass-table td {
             border: 1px solid #000000 !important;
             color: #000000 !important;
-            background: transparent !important;
+            background-color: #ffffff !important;
             padding: 10px !important;
         }
         .glass-table thead th {
@@ -271,13 +375,11 @@
             font-weight: bold !important;
             text-transform: uppercase !important;
             border-bottom: 2px solid #000000 !important;
+            color: #000000 !important;
         }
         .glass-table thead th:first-child, .glass-table thead th:last-child,
         .glass-table tbody td:first-child, .glass-table tbody td:last-child {
             border-radius: 0 !important;
-        }
-        .text-white, .text-white-50 {
-            color: #000000 !important;
         }
         .badge {
             color: #000000 !important;
@@ -289,31 +391,27 @@
         }
     }
 
-    /* --- Glassmorphism Blazor Error UI --- */
     #blazor-error-ui {
-        background: rgba(15, 23, 42, 0.95) !important;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-        color: #fff !important;
-        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5) !important;
+        background: #f8d7da !important;
+        color: #842029 !important;
+        border-top: 1px solid #f5c2c7 !important;
+        box-shadow: 0 -4px 6px rgba(0,0,0,0.1) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
         padding: 1rem 1.5rem !important;
         z-index: 9999 !important;
         border-top-left-radius: 1rem;
         border-top-right-radius: 1rem;
     }
-    #blazor-error-ui .reload { color: #00AEEF !important; font-weight: bold; text-decoration: none; margin-left: 1rem; }
+    #blazor-error-ui .reload { color: #0d6efd !important; font-weight: bold; text-decoration: none; margin-left: 1rem; }
     #blazor-error-ui .reload:hover { text-decoration: underline; }
-    #blazor-error-ui .dismiss { color: #fff !important; opacity: 0.5; cursor: pointer; transition: opacity 0.2s; }
+    #blazor-error-ui .dismiss { color: #842029 !important; opacity: 0.5; cursor: pointer; transition: opacity 0.2s; }
     #blazor-error-ui .dismiss:hover { opacity: 1; }
 </style>
 
 <div class="d-flex main-layout-container min-vh-100">
-    <!-- The WebGL Shader Background Container -->
-    <div id="shader-bg-container" class="position-fixed w-100 h-100 top-0 start-0" style="z-index: -2;"></div>
-
     <!-- Main Content Area -->
-    <main class="flex-grow-1 d-flex flex-column main-content">
+    <main class="flex-grow-1 d-flex flex-column main-content" style="z-index: 1;">
         <NavMenu />
 
         <article class="px-4 pb-5 page-transition" @key="NavManager.Uri">
@@ -321,17 +419,6 @@
         </article>
     </main>
 </div>
-
-<!-- Genuine SVG Refraction Filter -->
-<svg style="position: absolute; width: 0; height: 0; pointer-events: none;" aria-hidden="true">
-    <defs>
-        <filter id="liquid-refraction" color-interpolation-filters="sRGB">
-            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="1" seed="1" result="turbulence" />
-            <feGaussianBlur in="turbulence" stdDeviation="2" result="blurredNoise" />
-            <feDisplacementMap in="SourceGraphic" in2="blurredNoise" scale="12" xChannelSelector="R" yChannelSelector="B" result="displaced" />
-        </filter>
-    </defs>
-</svg>
 
 <div id="blazor-error-ui" data-nosnippet="true">
     An unhandled error has occurred.
@@ -348,14 +435,6 @@
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         StateHasChanged();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await JS.InvokeVoidAsync("initShaderBackground", "shader-bg-container");
-        }
     }
 
     public void Dispose()

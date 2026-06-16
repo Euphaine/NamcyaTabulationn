@@ -1,4 +1,4 @@
-﻿﻿@using NamcyaTabulation.Services
+﻿﻿﻿﻿@using NamcyaTabulation.Services
 @implements IDisposable
 @inject OrganizerAuthService AuthService
 @inject NavigationManager NavManager
@@ -26,31 +26,31 @@
                 @if (AuthService.CurrentOrganizer == null)
                 {
                     <NavLink class="nav-pill-link" href="" Match="NavLinkMatch.All">
-                        <i class="bi bi-box-arrow-in-right me-1"></i> Login
+                        <i class="bi bi-box-arrow-in-right icon-gradient-purple me-1"></i> Login
                     </NavLink>
                 }
                 else
                 {
                     <NavLink class="nav-pill-link" href="home">
-                        <i class="bi bi-house-door me-1"></i> Home
+                        <i class="bi bi-house-door icon-gradient-core me-1"></i> Home
                     </NavLink>
                 }
 
                 <NavLink class="nav-pill-link" href="judge">
-                    <i class="bi bi-person-badge-fill me-1"></i> Judge
+                    <i class="bi bi-person-badge-fill icon-gradient-blue me-1"></i> Judge
                 </NavLink>
                 <NavLink class="nav-pill-link" href="scoreboard">
-                    <i class="bi bi-display me-1"></i> Scoreboard
+                    <i class="bi bi-display icon-gradient-amber me-1"></i> Scoreboard
                 </NavLink>
                 <NavLink class="nav-pill-link" href="leaderboard">
-                    <i class="bi bi-globe me-1"></i> Leaderboard
+                    <i class="bi bi-globe icon-gradient-green me-1"></i> Leaderboard
                 </NavLink>
 
                 @if (AuthService.CurrentOrganizer != null)
                 {
                     <div class="vr bg-white opacity-25 d-none d-md-block mx-1"></div>
-                    <NavLink class="nav-pill-link text-warning" href="admin-panel">
-                        <i class="bi bi-gear-fill me-1"></i> Admin Hub
+                    <NavLink class="nav-pill-link" href="admin-panel">
+                        <i class="bi bi-gear-fill icon-gradient-core me-1"></i> Admin Hub
                     </NavLink>
                 }
             </div>
@@ -61,9 +61,17 @@
 <style>
     .cursor-pointer { cursor: pointer; }
     .dynamic-island-nav {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
+        background: rgba(20, 20, 25, 0.9) padding-box,
+                    linear-gradient(135deg, #4285F4, #9B51E0, #EA4335, #FBBC05) border-box !important;
+        backdrop-filter: blur(24px) saturate(200%);
+        -webkit-backdrop-filter: blur(24px) saturate(200%);
+        border: 2px solid transparent !important;
+        box-shadow: 
+            0 15px 35px rgba(0, 0, 0, 0.8),
+            -30px 0 50px rgba(66, 133, 244, 0.5),
+            30px 0 50px rgba(155, 81, 224, 0.5),
+            0 30px 50px rgba(234, 67, 53, 0.4),
+            inset 0 2px 5px rgba(255, 255, 255, 0.2) !important;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         cursor: pointer;
         
@@ -104,6 +112,7 @@
         font-size: 1.05rem;
         font-weight: 600;
         white-space: nowrap;
+        color: #ffffff !important;
         opacity: 0;
         max-width: 0;
         overflow: hidden;
@@ -114,23 +123,17 @@
         max-width: 200px;
         margin-left: 0.6rem;
     }
-    .dynamic-island-nav::after {
-        content: '';
-        position: absolute;
-        top: 0; left: -150%;
-        width: 100%; height: 100%;
-        background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0) 100%);
-        transform: skewX(-30deg);
-        animation: glassShine 6s infinite;
-        pointer-events: none;
-        z-index: 2;
-    }
     .dynamic-island-nav:hover:not(.expanded) {
         transform: scale(1.05) translateY(-2px);
-        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2) !important;
+        box-shadow: 
+            0 20px 45px rgba(0, 0, 0, 0.9),
+            -40px 0 70px rgba(66, 133, 244, 0.6),
+            40px 0 70px rgba(155, 81, 224, 0.6),
+            0 40px 70px rgba(234, 67, 53, 0.5),
+            inset 0 2px 5px rgba(255, 255, 255, 0.3) !important;
     }
     .nav-pill-link {
-        color: rgba(255, 255, 255, 0.7) !important;
+        color: rgba(255, 255, 255, 0.75) !important;
         padding: 0.4rem 1rem;
         border-radius: 50rem;
         font-size: 0.9rem;
@@ -140,14 +143,14 @@
         white-space: nowrap;
     }
     .nav-pill-link:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background-color: rgba(255, 255, 255, 0.15);
         color: #ffffff !important;
         transform: translateY(-2px);
     }
     .nav-pill-link.active {
-        background: rgba(255, 255, 255, 0.15);
-        color: #00AEEF !important;
-        box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        background-color: rgba(255, 255, 255, 0.25);
+        color: #fff !important;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
     }
     
     /* Smooth Expansion Transitions */
@@ -172,11 +175,6 @@
     @@keyframes dynamicIslandTop {
         0% { transform: translateY(-30px) scale(0.9); opacity: 0; }
         100% { transform: translateY(0) scale(1); opacity: 1; }
-    }
-    @@keyframes glassShine {
-        0% { left: -150%; }
-        20% { left: 150%; }
-        100% { left: 150%; }
     }
 </style>
 

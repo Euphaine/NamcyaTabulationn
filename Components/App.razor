@@ -1,9 +1,10 @@
-﻿﻿﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark">
     <base href="/" />
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
@@ -16,10 +17,11 @@
     <style>
         html {
             font-size: 20px !important; /* Globally scales up the entire UI */
-            background-color: #05080f !important; /* Deep space safety-net color to prevent white flashes */
+            background-color: #05080f !important; /* Dark space fallback */
+            color-scheme: dark; /* Forces the browser engine to use Dark Mode autofill and scrollbars */
         }
         body {
-            background: transparent !important; /* Must be transparent so it doesn't bury the live shader */
+            background-color: transparent !important; 
         }
         /* Prevent the Blazor Reconnect Modal from flashing bright white */
         #components-reconnect-modal {
@@ -35,9 +37,6 @@
     <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-    <script src="/js/shader-bg.js"></script>
-    <script src="/js/login-shader.js"></script>
     <script>
         window.downloadFileFromText = (fileName, content, contentType = 'text/csv;charset=utf-8;') => {
             const blob = new Blob([content], { type: contentType });
@@ -48,6 +47,15 @@
             link.click();
             document.body.removeChild(link);
         };
+
+        // Optimized Cursor Spotlight Tracker
+        // Uses requestAnimationFrame to prevent layout thrashing and ensure zero-lag performance
+        document.addEventListener("mousemove", (e) => {
+            requestAnimationFrame(() => {
+                document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+                document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+            });
+        });
     </script>
 </body>
 

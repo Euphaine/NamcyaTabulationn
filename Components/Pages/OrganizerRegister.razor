@@ -1,46 +1,64 @@
 @page "/register"
-@using System.ComponentModel.DataAnnotations
+@using Microsoft.EntityFrameworkCore
+@using NamcyaTabulation.Data
+@using NamcyaTabulation.Models
 @using NamcyaTabulation.Services
+@inject AppDbContext DbContext
 @inject OrganizerAuthService AuthService
 @inject NavigationManager NavManager
 
 <PageTitle>Organizer Registration</PageTitle>
 
-<div class="d-flex justify-content-center align-items-center h-100 register-container">
-    <div class="card p-4 shadow-sm border-0 register-card">
-        <h3 class="mb-3">Create Account</h3>
-        <p>Register as a new event organizer</p>
+<div class="container mt-5 pt-5 fade-in">
+    <div class="row justify-content-center">
+        <div class="col-md-5 col-lg-4 mt-5">
+            <div class="p-5 border-0 apple-glass-login shadow-lg text-center">
+                <img src="/images/namcya_logo.png" alt="NAMCYA Logo" class="img-fluid mb-4" style="max-height: 100px;" />
+                <h3 class="fw-bold text-white mb-1" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Register Account</h3>
+                <p class="text-white-50 mb-4">Create a new organizer portal access</p>
 
-        <form @onsubmit="HandleRegister" @onsubmit:preventDefault="true">
-            
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input type="text" class="form-control" @bind="registerModel.Username" required />
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-control" @bind="registerModel.Password" required />
-            </div>
-            
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger">@errorMessage</div>
-            }
+                <form @onsubmit="HandleRegister" @onsubmit:preventDefault="true">
+                    <div class="mb-3 text-start">
+                        <label class="form-label text-white-50 small fw-bold text-uppercase">Username</label>
+                        <input type="text" class="form-control apple-glass-input text-white" @bind="registerModel.Username" required />
+                    </div>
+                    
+                    <div class="mb-3 text-start">
+                        <label class="form-label text-white-50 small fw-bold text-uppercase">Password</label>
+                        <input type="password" class="form-control apple-glass-input text-white" @bind="registerModel.Password" required />
+                    </div>
 
-            <button type="submit" class="btn btn-success w-100 mb-3">Create Account</button>
-            
-            <div class="text-center">
-                <span>Already have an account?</span>
-                <a href="/" class="ms-1">Sign in</a>
+                    <div class="mb-4 text-start">
+                        <label class="form-label text-white-50 small fw-bold text-uppercase">Confirm Password</label>
+                        <input type="password" class="form-control apple-glass-input text-white" @bind="registerModel.ConfirmPassword" required />
+                    </div>
+                    
+                    <button type="submit" class="btn liquid-btn w-100 text-white fw-bold mb-3">Register</button>
+                    
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert bg-danger bg-opacity-25 text-white border-0 mt-3 p-2 small fw-bold"><i class="bi bi-exclamation-circle-fill me-1"></i> @errorMessage</div>
+                    }
+
+                    @if (successMessage)
+                    {
+                        <div class="alert bg-success bg-opacity-25 text-white border-0 mt-3 p-2 small fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Registration successful! Logging in...</div>
+                    }
+                    
+                    <div class="text-center mt-2">
+                        <span class="text-white-50">Already have an account?</span>
+                        <a href="/" class="ms-1 text-info fw-bold">Sign in here</a>
+                    </div>
+                </form>
             </div>
-        </form>
+        </div>
     </div>
 </div>
 
 @code {
-    public RegisterModel registerModel { get; set; } = new();
+    private RegisterModel registerModel = new();
     private string? errorMessage;
+    private bool successMessage = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -51,25 +69,40 @@
     private async Task HandleRegister()
     {
         errorMessage = null;
-        var success = await AuthService.RegisterAsync(registerModel.Username, registerModel.Password);
-        
-        if (success) 
+
+        if (registerModel.Password != registerModel.ConfirmPassword)
         {
-            // Automatically log them in after a successful registration
+            errorMessage = "Passwords do not match.";
+            return;
+        }
+
+        try
+        {
+            var existing = await DbContext.Organizers.FirstOrDefaultAsync(o => o.Username.ToLower() == registerModel.Username.ToLower());
+            if (existing != null)
+            {
+                errorMessage = "Username is already taken.";
+                return;
+            }
+
+            var passwordHash = OrganizerAuthService.HashPassword(registerModel.Password);
+            DbContext.Organizers.Add(new Organizer { Username = registerModel.Username, PasswordHash = passwordHash });
+            await DbContext.SaveChangesAsync();
+
+            successMessage = true;
+            StateHasChanged();
+            
+            // Auto-login and redirect to Admin Home
+            await Task.Delay(1500);
             await AuthService.LoginAsync(registerModel.Username, registerModel.Password);
             NavManager.NavigateTo("/home");
         }
-        else 
-        {
-            errorMessage = "Username already exists. Please choose another.";
-        }
+        catch (Exception) { errorMessage = "An error occurred during registration."; }
     }
 
     public class RegisterModel {
-        [Required(ErrorMessage = "Username is required.")] 
         public string Username { get; set; } = string.Empty;
-        
-        [Required(ErrorMessage = "Password is required.")] 
         public string Password { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

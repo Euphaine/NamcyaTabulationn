@@ -6,75 +6,158 @@
 @inject AppDbContext DbContext
 @inject OrganizerAuthService AuthService
 @inject NavigationManager NavManager
-@inject IJSRuntime JS
 
 <PageTitle>System Settings</PageTitle>
 
-@if (AuthService.CurrentOrganizer != null)
-{
-    <div class="container-fluid mt-4 mb-5 fade-in">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="fw-bold text-white" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">System Settings</h2>
-            <a href="/admin-panel" class="btn btn-sm liquid-btn text-white shadow-sm"><i class="bi bi-arrow-left"></i> Back to Hub</a>
-        </div>
-
-        <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
-                <div class="glass-panel overflow-hidden">
-                    <div class="p-4 border-bottom border-white border-opacity-10">
-                        <h5 class="mb-0 fw-bold"><i class="bi bi-sliders me-2"></i> Global Configuration</h5>
+<div class="container mt-4 fade-in">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="glass-panel p-4 p-md-5">
+                <div class="d-flex align-items-center mb-4 pb-3 border-bottom border-white border-opacity-10">
+                    <div class="icon-glass bg-white bg-opacity-25 rounded-circle p-3 me-4 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                        <i class="bi bi-sliders icon-gradient-blue fs-3"></i>
                     </div>
-                    <div class="p-4">
-                        @if (showSuccess)
-                        {
-                            <div class="alert bg-success bg-opacity-25 text-white border-0 d-flex align-items-center mb-4">
-                                <i class="bi bi-check-circle-fill me-2"></i> Settings saved successfully!
-                            </div>
-                        }
+                    <div>
+                        <h2 class="fw-bolder text-white mb-0" style="letter-spacing: -1px;">System Settings</h2>
+                        <p class="text-white-50 mb-0">Configure global tabulation rules and behaviors</p>
+                    </div>
+                </div>
 
-                        <form @onsubmit="SaveSettings" @onsubmit:preventDefault="true">
-                            <div class="mb-4">
-                                <div class="form-check form-switch fs-5 d-flex align-items-center">
-                                    <input class="form-check-input glass-input me-3" type="checkbox" role="switch" id="allowTiesSwitch" @bind="settings.AllowTies" style="width: 3rem; height: 1.5rem; cursor: pointer;" />
-                                    <label class="form-check-label text-white" for="allowTiesSwitch" style="cursor: pointer;">
-                                        <strong>Allow Ties in Rankings</strong>
-                                        <span class="d-block fs-6 text-white-50 mt-1">If enabled, contestants with the exact same Rank Sum and Average Score will receive the same placement. If disabled, alphabetical sorting will break the tie.</span>
-                                    </label>
+                @if (showSuccessMessage)
+                {
+                    <div class="alert bg-success bg-opacity-25 text-white border-0 alert-dismissible fade show mb-4">
+                        <i class="bi bi-check-circle-fill me-2"></i> Settings saved successfully!
+                        <button type="button" class="btn-close btn-close-white" @onclick="() => showSuccessMessage = false"></button>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert bg-danger bg-opacity-25 text-white border-0 alert-dismissible fade show mb-4">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
+                        <button type="button" class="btn-close btn-close-white" @onclick="() => errorMessage = null"></button>
+                    </div>
+                }
+
+                @if (settings != null)
+                {
+                    <form @onsubmit="SaveSettings" @onsubmit:preventDefault="true">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="glass-panel p-3 bg-opacity-10 h-100 border-0">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input glass-input fs-5 mt-0" type="checkbox" role="switch" id="allowTiesSwitch" @bind="settings.AllowTies">
+                                        <label class="form-check-label text-white fw-bold ms-2 mt-1" for="allowTiesSwitch">Allow Final Ties</label>
+                                    </div>
+                                    <small class="text-white-50 d-block">If disabled, the system will use average scores and alphabetical order to forcefully break all ties.</small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="glass-panel p-3 bg-opacity-10 h-100 border-0">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input glass-input fs-5 mt-0" type="checkbox" role="switch" id="lockScoringSwitch" @bind="settings.LockScoring">
+                                        <label class="form-check-label text-white fw-bold ms-2 mt-1" for="lockScoringSwitch">Lock All Scoring</label>
+                                    </div>
+                                    <small class="text-white-50 d-block">Instantly prevents all judges from submitting or editing any scores across all events.</small>
                                 </div>
                             </div>
 
-                            <div class="d-flex gap-2 mt-5 pt-3 border-top border-white border-opacity-10">
-                                <button type="submit" class="btn liquid-btn w-100 text-white fw-bold">Save Settings</button>
+                            <div class="col-12">
+                                <div class="glass-panel p-3 bg-opacity-10 border-0">
+                                    <label class="form-label text-white-50 fw-bold text-uppercase small">Tie-Breaker Ranking Engine</label>
+                                    <select class="form-select glass-input text-white" @bind="settings.RankingSystem">
+                                        <option value="Standard" class="text-dark">Standard Competition (1, 2, 2, 4)</option>
+                                        <option value="Dense" class="text-dark">Dense Ranking (1, 2, 2, 3)</option>
+                                        <option value="Fractional" class="text-dark">Fractional Ranking (1, 2.5, 2.5, 4)</option>
+                                    </select>
+                                    <small class="text-white-50 mt-2 d-block">Determines how tied scores mathematically affect the sum of ranks algorithm.</small>
+                                </div>
                             </div>
-                        </form>
+
+                            <div class="col-12">
+                                <div class="glass-panel p-3 bg-opacity-10 border-0">
+                                    <label class="form-label text-white-50 fw-bold text-uppercase small">Decimal Precision</label>
+                                    <input type="number" class="form-control glass-input text-white" @bind="settings.DecimalPrecision" min="0" max="4" />
+                                    <small class="text-white-50 mt-2 d-block">The number of decimal places used when calculating the final average scores (default is 2).</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 pt-3 border-top border-white border-opacity-10 text-end">
+                            <button type="submit" class="btn liquid-btn px-5 py-3 rounded-pill fw-bolder">
+                                <i class="bi bi-save me-2"></i> Save Settings
+                            </button>
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-center text-white-50 py-5">
+                        <div class="spinner-border text-info mb-3" role="status"></div>
+                        <div>Loading settings...</div>
                     </div>
-                </div>
+                }
             </div>
         </div>
     </div>
-}
+</div>
 
 @code {
-    private SystemSetting settings = new();
-    private bool showSuccess = false;
+    private SystemSetting? settings;
+    private bool showSuccessMessage = false;
+    private string? errorMessage = null;
 
     protected override async Task OnInitializedAsync()
     {
         await AuthService.InitializeSessionAsync();
-        if (AuthService.CurrentOrganizer == null) { NavManager.NavigateTo("/"); return; }
+        if (AuthService.CurrentOrganizer == null)
+        {
+            NavManager.NavigateTo("/");
+            return;
+        }
 
-        var existingSettings = await DbContext.SystemSettings.FirstOrDefaultAsync();
-        if (existingSettings != null) { settings = existingSettings; }
+        try
+        {
+            settings = await DbContext.SystemSettings.FirstOrDefaultAsync();
+            if (settings == null)
+            {
+                settings = new SystemSetting();
+                DbContext.SystemSettings.Add(settings);
+                await DbContext.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DB ERROR] {ex.Message}");
+            errorMessage = "Database mismatch detected. The new 'RankingSystem' column is missing. Please close the app and fully delete your 'namcya.db' file.";
+            settings = new SystemSetting(); // Fallback so the UI doesn't hang!
+        }
     }
 
     private async Task SaveSettings()
     {
-        if (settings.Id == 0) DbContext.SystemSettings.Add(settings);
-        else DbContext.SystemSettings.Update(settings);
-
-        await DbContext.SaveChangesAsync();
-        
-        showSuccess = true; StateHasChanged();
-        await Task.Delay(3000); showSuccess = false; StateHasChanged();
+        if (settings != null)
+        {
+            try
+            {
+                DbContext.SystemSettings.Update(settings);
+                await DbContext.SaveChangesAsync();
+                showSuccessMessage = true;
+                errorMessage = null;
+                
+                // Hide success message automatically after 3 seconds
+                _ = Task.Delay(3000).ContinueWith(_ => 
+                {
+                    showSuccessMessage = false;
+                    InvokeAsync(StateHasChanged);
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SAVE ERROR] {ex.Message}");
+                errorMessage = "Could not save settings. Ensure your database is properly reset.";
+            }
+        }
     }
 }

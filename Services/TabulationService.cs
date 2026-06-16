@@ -14,7 +14,7 @@ namespace NamcyaTabulation.Services
         public string ContestantName { get; set; } = string.Empty;
         public decimal RankSum { get; set; }
         public decimal FinalScore { get; set; }
-        public int Rank { get; set; }
+        public decimal Rank { get; set; }
         public List<string> Comments { get; set; } = new();
     }
 
@@ -42,11 +42,19 @@ namespace NamcyaTabulation.Services
             // Fetch our global settings to check if ties are allowed
             bool allowTies = false;
             int decimalPrecision = 2;
+            string rankingSystem = "Standard";
             try
             {
                 var settings = await _context.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
                 allowTies = settings?.AllowTies ?? false;
                 decimalPrecision = settings?.DecimalPrecision ?? 2;
+                
+                // Use reflection safely if RankingSystem isn't added to the model yet during this transition
+                var rankingProp = settings?.GetType().GetProperty("RankingSystem");
+                if (rankingProp != null && settings != null)
+                {
+                    rankingSystem = rankingProp.GetValue(settings)?.ToString() ?? "Standard";
+                }
             }
             catch
             {
@@ -78,13 +86,12 @@ namespace NamcyaTabulation.Services
                 }).OrderBy(c => c.ContestantName).ToList();
             }
 
-            var allComments = new List<string>();
+            var allComments = new List<JudgeComment>();
             try 
             {
                 allComments = await _context.JudgeComments
                     .AsNoTracking()
                     .Where(c => c.Contestant!.CategoryId == categoryId && !string.IsNullOrWhiteSpace(c.Comment))
-                    .Select(c => c.Comment)
                     .ToListAsync();
             }
             catch 
@@ -110,23 +117,28 @@ namespace NamcyaTabulation.Services
             var scoresByJudge = contestantJudgeScores.GroupBy(s => s.JudgeId);
             foreach (var judgeGroup in scoresByJudge)
             {
-                var sortedScores = judgeGroup.OrderByDescending(s => s.TotalScore).ToList();
-                int judgeCurrentRank = 1;
-                decimal judgeLastRank = 1;
+                var groupedByScore = judgeGroup.OrderByDescending(s => s.TotalScore)
+                                               .GroupBy(s => s.TotalScore)
+                                               .ToList();
                 
-                for (int i = 0; i < sortedScores.Count; i++)
+                int currentRank = 1;
+                foreach (var scoreGroup in groupedByScore)
                 {
-                    decimal assignedRank = judgeCurrentRank;
-                    if (i > 0 && sortedScores[i].TotalScore == sortedScores[i - 1].TotalScore)
-                    {
-                        // Handle tie: give them the same rank as the previous contestant
-                        assignedRank = judgeLastRank;
-                    }
-                    
-                    judgeRankings.Add((sortedScores[i].ContestantId, sortedScores[i].ContestantName, sortedScores[i].TotalScore, assignedRank));
-                    
-                    judgeLastRank = assignedRank;
-                    judgeCurrentRank++;
+                    int tieCount = scoreGroup.Count();
+                    decimal assignedRank = currentRank;
+
+                    if (rankingSystem == "Fractional")
+                        assignedRank = tieCount == 1 ? currentRank : (currentRank + (currentRank + tieCount - 1)) / 2m;
+                    else if (rankingSystem == "Dense")
+                        assignedRank = currentRank;
+
+                    foreach (var s in scoreGroup)
+                        judgeRankings.Add((s.ContestantId, s.ContestantName, s.TotalScore, assignedRank));
+
+                    if (rankingSystem == "Dense")
+                        currentRank++;
+                    else
+                        currentRank += tieCount;
                 }
             }
 
@@ -146,7 +158,7 @@ namespace NamcyaTabulation.Services
                     ContestantName = group.Key.ContestantName,
                     RankSum = rankSum,
                     FinalScore = averageScore,
-                    Comments = allComments // Use the safely fetched comments
+                    Comments = allComments.Where(c => c.ContestantId == group.Key.ContestantId).Select(c => c.Comment).ToList()
                 });
             }
 
@@ -157,22 +169,46 @@ namespace NamcyaTabulation.Services
                 .ThenBy(r => r.ContestantName) // Tertiary Sort: Alphabetical tie-breaker if ties are strictly disabled
                 .ToList();
                 
-            int currentRank = 1;
-            for (int i = 0; i < rankedResults.Count; i++)
-            {
-                bool isTied = i > 0 && 
-                              rankedResults[i].RankSum == rankedResults[i - 1].RankSum && 
-                              rankedResults[i].FinalScore == rankedResults[i - 1].FinalScore;
-                              
-                rankedResults[i].Rank = (isTied && allowTies) ? rankedResults[i - 1].Rank : currentRank;
-                currentRank++;
-            }
+            var finalGrouped = rankedResults.GroupBy(r => new { r.RankSum, r.FinalScore }).ToList();
             
+            int finalCurrentRank = 1;
+            foreach (var group in finalGrouped)
+            {
+                int tieCount = group.Count();
+                decimal assignedRank = finalCurrentRank;
+
+                if (allowTies)
+                {
+                    if (rankingSystem == "Fractional")
+                        assignedRank = tieCount == 1 ? finalCurrentRank : (finalCurrentRank + (finalCurrentRank + tieCount - 1)) / 2m;
+                    else if (rankingSystem == "Dense")
+                        assignedRank = finalCurrentRank;
+                }
+
+                foreach (var r in group)
+                {
+                    r.Rank = assignedRank;
+                    if (!allowTies) assignedRank++; // Force unique rank if ties are disabled
+                }
+
+                if (allowTies && rankingSystem == "Dense") finalCurrentRank++;
+                else finalCurrentRank += tieCount;
+            }
+
             return rankedResults;
         }
 
         public async Task<List<JudgeScoreBreakdown>> GetJudgeBreakdownAsync(int categoryId)
         {
+            string rankingSystem = "Standard";
+            try
+            {
+                var settings = await _context.SystemSettings.AsNoTracking().FirstOrDefaultAsync();
+                var prop = settings?.GetType().GetProperty("RankingSystem");
+                if (prop != null && settings != null) rankingSystem = prop.GetValue(settings)?.ToString() ?? "Standard";
+            }
+            catch { }
+
             var contestants = await _context.Contestants
                 .AsNoTracking()
                 .Where(c => c.CategoryId == categoryId)
@@ -204,23 +240,29 @@ namespace NamcyaTabulation.Services
             
             foreach (var judgeGroup in scoresByJudge)
             {
-                var sortedScores = judgeGroup.OrderByDescending(s => s.TotalScore).ToList();
-                int currentRank = 1;
-                decimal lastRank = 1;
+                var groupedByScore = judgeGroup.OrderByDescending(s => s.TotalScore)
+                                               .GroupBy(s => s.TotalScore)
+                                               .ToList();
                 
-                for (int i = 0; i < sortedScores.Count; i++)
+                int currentRank = 1;
+                foreach (var scoreGroup in groupedByScore)
                 {
+                    int tieCount = scoreGroup.Count();
                     decimal assignedRank = currentRank;
-                    if (i > 0 && sortedScores[i].TotalScore == sortedScores[i - 1].TotalScore)
+
+                    if (rankingSystem == "Fractional")
+                        assignedRank = tieCount == 1 ? currentRank : (currentRank + (currentRank + tieCount - 1)) / 2m;
+                    else if (rankingSystem == "Dense")
+                        assignedRank = currentRank;
+
+                    foreach (var s in scoreGroup)
                     {
-                        assignedRank = lastRank;
+                        s.JudgeRank = assignedRank;
+                        breakdown.Add(s);
                     }
-                    
-                    sortedScores[i].JudgeRank = assignedRank;
-                    breakdown.Add(sortedScores[i]);
-                    
-                    lastRank = assignedRank;
-                    currentRank++;
+
+                    if (rankingSystem == "Dense") currentRank++;
+                    else currentRank += tieCount;
                 }
             }
             
@@ -270,9 +312,9 @@ namespace NamcyaTabulation.Services
             sb.AppendLine(".subtitle { font-size: 14pt; font-weight: bold; color: #333333; text-align: center; border: none; }");
             sb.AppendLine(".meta-info { font-size: 11pt; font-weight: bold; text-align: left; border: none; color: #000000; }");
             sb.AppendLine(".text-left { text-align: left; }");
-            sb.AppendLine(".gold { background-color: #fff9e6; font-weight: bold; }"); // Very subtle professional gold
-            sb.AppendLine(".silver { background-color: #f0f4f8; font-weight: bold; }"); // Very subtle professional silver
-            sb.AppendLine(".bronze { background-color: #fff3e6; font-weight: bold; }"); // Very subtle professional bronze
+            sb.AppendLine(".gold { font-weight: bold; color: #000000; }");
+            sb.AppendLine(".silver { font-weight: bold; color: #000000; }");
+            sb.AppendLine(".bronze { font-weight: bold; color: #000000; }");
             sb.AppendLine(".sig-line { border-bottom: 1pt solid black; border-top: none; border-left: none; border-right: none; }");
             sb.AppendLine("</style></head><body>");
             
@@ -297,7 +339,7 @@ namespace NamcyaTabulation.Services
 
             foreach (var rank in results)
             {
-                var rankDisplay = (rank.FinalScore == 0 && rank.Rank == 0) ? "-" : rank.Rank.ToString();
+                var rankDisplay = (rank.FinalScore == 0 && rank.Rank == 0) ? "-" : rank.Rank.ToString("0.##");
                 var sumDisplay = (rank.FinalScore == 0 && rank.Rank == 0) ? "-" : rank.RankSum.ToString("0.##");
                 var scoreDisplay = (rank.FinalScore == 0 && rank.Rank == 0) ? "-" : rank.FinalScore.ToString("0.##");
                 

@@ -12,9 +12,13 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddHttpContextAccessor();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// Ensure the database is stored in a writable user folder, not Program Files!
+var dbFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NAMCYA_Tabulation");
+Directory.CreateDirectory(dbFolder);
+var dbPath = Path.Combine(dbFolder, "namcya.db");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)), ServiceLifetime.Transient);
+    options.UseSqlite($"Data Source={dbPath}"), ServiceLifetime.Transient);
 
 builder.Services.AddTransient<TabulationService>();
 builder.Services.AddSingleton<ScoreBroadcastService>();
@@ -26,13 +30,37 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    context.Database.Migrate();
 
-    if (!context.Organizers.Any())
+    try
     {
-        var passwordHash = NamcyaTabulation.Services.OrganizerAuthService.HashPassword("admin123");
-        context.Organizers.Add(new NamcyaTabulation.Models.Organizer { Username = "admin", PasswordHash = passwordHash });
-        context.SaveChanges();
+        // CRITICAL SAFETY: Only allow auto-deletion during local development.
+        // In production, a temporary file lock could trigger this and wipe the live event data!
+        if (app.Environment.IsDevelopment())
+        {
+            try 
+            {
+                context.Organizers.Any(); // Test if the table exists
+            }
+            catch
+            {
+                context.Database.EnsureDeleted(); // Nuke the corrupted file
+            }
+        }
+
+        context.Database.EnsureCreated();
+
+        if (!context.Organizers.Any())
+        {
+            var passwordHash = NamcyaTabulation.Services.OrganizerAuthService.HashPassword("admin123");
+            context.Organizers.Add(new NamcyaTabulation.Models.Organizer { Username = "admin", PasswordHash = passwordHash });
+            context.SaveChanges();
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"DATABASE ERROR: {ex.Message}");
+        if (!app.Environment.IsDevelopment()) Console.ReadLine(); // Keep the window open so we can read the error!
     }
 }
 
@@ -52,4 +80,39 @@ app.MapStaticAssets();
 app.MapRazorComponents<NamcyaTabulation.Components.App>()
     .AddInteractiveServerRenderMode();
 
-app.Run();
+if (app.Environment.IsDevelopment())
+{
+    app.Urls.Add("http://localhost:5000");
+}
+else 
+{
+    // Use * to allow ANY device on the local Wi-Fi to connect to the server!
+    app.Urls.Add("http://*:5000");
+}
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    try
+    {
+        if (!app.Environment.IsDevelopment())
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "http://localhost:5000",
+                UseShellExecute = true
+            });
+        }
+    }
+    catch { }
+});
+
+try 
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine();
+    Console.WriteLine($"SERVER CRASHED: {ex.Message}");
+    if (!app.Environment.IsDevelopment()) Console.ReadLine(); // Keep window open if it crashes!
+}

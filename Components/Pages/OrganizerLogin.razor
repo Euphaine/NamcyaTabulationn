@@ -12,7 +12,7 @@
 
     <div class="row justify-content-center">
         <div class="col-md-5 col-lg-4 mt-5">
-            <div class="p-5 border-0 glass-panel shadow-lg text-center">
+            <div class="p-5 border-0 apple-glass-login shadow-lg text-center">
                 <img src="/images/namcya_logo.png" alt="NAMCYA Logo" class="img-fluid mb-4" style="max-height: 100px;" />
                 <h3 class="fw-bold text-white mb-1" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Organizer Portal</h3>
                 <p class="text-white-50 mb-4">Please sign in to continue</p>
@@ -20,12 +20,12 @@
                 <form @onsubmit="HandleLogin" @onsubmit:preventDefault="true">
                     <div class="mb-3 text-start">
                         <label class="form-label text-white-50 small fw-bold text-uppercase">Username</label>
-                        <input type="text" class="form-control glass-input text-white" @bind="loginModel.Username" required />
+                        <input type="text" class="form-control apple-glass-input text-white" @bind="loginModel.Username" required />
                     </div>
                     
                     <div class="mb-4 text-start">
                         <label class="form-label text-white-50 small fw-bold text-uppercase">Password</label>
-                        <input type="password" class="form-control glass-input text-white" @bind="loginModel.Password" required />
+                        <input type="password" class="form-control apple-glass-input text-white" @bind="loginModel.Password" required />
                     </div>
                     
                     <button type="submit" class="btn liquid-btn w-100 text-white fw-bold mb-3">Sign In</button>

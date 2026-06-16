@@ -10,14 +10,14 @@
 
 @if (AuthService.CurrentOrganizer != null)
 {
-    <div class="container-fluid mt-4 mb-4 d-flex flex-column" style="min-height: calc(100vh - 130px);">
+    <div class="container mt-4 fade-in">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h2 class="fw-bold text-white mb-0" style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Home Dashboard</h2>
-                <p class="text-white-50 mb-0">Welcome back, @AuthService.CurrentOrganizer.Username!</p>
+                <h2 class="fw-bolder text-white mb-0" style="letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">Home Dashboard</h2>
+                <p class="text-white-50 mb-0">Welcome back, <strong class="text-white">@AuthService.CurrentOrganizer.Username</strong>!</p>
             </div>
-            <button class="btn liquid-btn text-danger fw-bold shadow-sm" @onclick="HandleLogout">
-                <i class="bi bi-box-arrow-right me-2"></i> Logout
+            <button class="btn liquid-btn fw-bold shadow-sm px-4" @onclick="HandleLogout">
+                <i class="bi bi-box-arrow-right icon-gradient-amber me-2"></i> Logout
             </button>
         </div>
 
@@ -26,10 +26,10 @@
             <div class="col-md-3">
                 <div class="glass-panel hover-zoom overflow-hidden h-100 position-relative" title="Manage Events">
                     <div class="p-4 d-flex align-items-center">
-                        <i class="bi bi-calendar-event text-primary" style="font-size: 2.5rem;"></i>
+                        <i class="bi bi-calendar-event icon-gradient-core" style="font-size: 2.5rem;"></i>
                         <div class="ms-3">
                             <h6 class="text-uppercase text-white-50 fw-bold mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Total Events</h6>
-                            <h2 class="mb-0 fw-bold text-white">@totalEvents</h2>
+                            <h2 class="mb-0 fw-bolder text-white">@totalEvents</h2>
                         </div>
                     </div>
                     <a href="/admin/events" class="stretched-link"></a>
@@ -38,10 +38,10 @@
             <div class="col-md-3">
                 <div class="glass-panel hover-zoom overflow-hidden h-100 position-relative" title="Manage Categories">
                     <div class="p-4 d-flex align-items-center">
-                        <i class="bi bi-tags text-info" style="font-size: 2.5rem;"></i>
+                        <i class="bi bi-tags icon-gradient-purple" style="font-size: 2.5rem;"></i>
                         <div class="ms-3">
                             <h6 class="text-uppercase text-white-50 fw-bold mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Categories</h6>
-                            <h2 class="mb-0 fw-bold text-white">@totalCategories</h2>
+                            <h2 class="mb-0 fw-bolder text-white">@totalCategories</h2>
                         </div>
                     </div>
                     <a href="/admin/categories-criteria" class="stretched-link"></a>
@@ -50,10 +50,10 @@
             <div class="col-md-3">
                 <div class="glass-panel hover-zoom overflow-hidden h-100 position-relative" title="Manage Judges">
                     <div class="p-4 d-flex align-items-center">
-                        <i class="bi bi-person-badge text-success" style="font-size: 2.5rem;"></i>
+                        <i class="bi bi-person-badge icon-gradient-green" style="font-size: 2.5rem;"></i>
                         <div class="ms-3">
                             <h6 class="text-uppercase text-white-50 fw-bold mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Active Judges</h6>
-                            <h2 class="mb-0 fw-bold text-white">@totalJudges</h2>
+                            <h2 class="mb-0 fw-bolder text-white">@totalJudges</h2>
                         </div>
                     </div>
                     <a href="/admin/judges" class="stretched-link"></a>
@@ -62,10 +62,10 @@
             <div class="col-md-3">
                 <div class="glass-panel hover-zoom overflow-hidden h-100 position-relative" title="Manage Contestants">
                     <div class="p-4 d-flex align-items-center">
-                        <i class="bi bi-people text-warning" style="font-size: 2.5rem;"></i>
+                        <i class="bi bi-people icon-gradient-amber" style="font-size: 2.5rem;"></i>
                         <div class="ms-3">
                             <h6 class="text-uppercase text-white-50 fw-bold mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Contestants</h6>
-                            <h2 class="mb-0 fw-bold text-white">@totalContestants</h2>
+                            <h2 class="mb-0 fw-bolder text-white">@totalContestants</h2>
                         </div>
                     </div>
                     <a href="/admin/contestants" class="stretched-link"></a>
@@ -79,7 +79,7 @@
                 <div class="flex-grow-1 w-100" style="min-height: 400px;">
                     <!-- Uncomment this once the NamcyaDashboardWidget component is created -->
                     <!-- <NamcyaDashboardWidget /> -->
-                    <div class="glass-panel h-100 d-flex align-items-center justify-content-center text-white-50 shadow-sm"><i class="bi bi-bar-chart-line me-2"></i> Quick Analytics Widget Placeholder</div>
+                    <div class="glass-panel h-100 d-flex align-items-center justify-content-center text-white-50 shadow-sm"><i class="bi bi-bar-chart-line icon-gradient-blue me-2"></i> Quick Analytics Widget Placeholder</div>
                 </div>
             </div>
         </div>
